@@ -11,8 +11,8 @@ Aplicativo web de estudo exegético do Antigo Testamento. Interface no **GitHub 
   - **Texto Bíblico**: já vem com a palavra da Bíblia Livre que corresponde a cada termo hebraico (por alinhamento automático), e você pode corrigir. O **+** cria colunas de tradução suas.
   - **Hebraico**: texto original, transliteração, raiz com as traduções possíveis e ocorrências (no livro / no AT).
   - **Strong Hebraico**: número, traduções do termo e morfologia em português.
-  - **LXX**: palavra grega sugerida automaticamente (★), e você pode trocar. A coluna **Strong Grego** mostra o número, as traduções e a morfologia.
-  - As traduções são as mais frequentes na Bíblia Livre em todo o AT, calculadas por alinhamento estatístico hebraico ↔ português.
+  - **LXX**: todas as palavras gregas do versículo (Rahlfs), cada uma na linha do termo hebraico que ela verte. A coluna **Strong Grego** mostra o número, as traduções e a morfologia da palavra principal.
+  - As traduções possíveis vêm do léxico de Strong vertido para o português (`tools/strong_pt.tsv`), somadas às traduções mais frequentes da Bíblia Livre.
   - **Dicionários e Léxicos / Comentários exegéticos**: começam vazios. Você cadastra as obras, e cada uma vira uma coluna.
 - Colunas compactas para celular. Há barra de rolagem horizontal também no topo da tabela, e as duas linhas de cabeçalho ficam congeladas.
 - Todas as colunas têm a mesma largura. Texto longo aparece com reticências e abre completo quando você toca nele.

@@ -357,7 +357,7 @@
   // ---------------------------------------------- colunas
   const obrasCat = (cat) => S.obras.filter(o => o.categoria === cat);
   function colunas() {
-    const W = { texto: 104, he: 118, oc: 50, strong: 116, lxx: 108, obra: 112, vazio: 118 };
+    const W = { texto: 96, he: 106, oc: 46, strong: 104, lxx: 104, obra: 102, vazio: 106 };
     const c = [{ k: 'pt', tipo: 'pt', titulo: 'Texto Bíblico', cor: 'amarelo', g: 'info', w: W.texto }];
     S.traducoes.forEach(t => c.push({ k: 'trad:' + t.id, tipo: 'trad', trad: t, titulo: t.nome, cor: 'amarelo2', g: 'info', w: W.texto }));
     c.push({ k: 'he', tipo: 'he', titulo: 'Hebraico', cor: 'verde', g: 'info', w: W.he });
@@ -380,11 +380,10 @@
   const tradGr = (k) => { const e = k && ctx.dados.lex_gr[k]; return e && e[4] ? e[4] : []; };
   function gregoDaLinha(i) {
     const r = ctx.v.he[i];
-    const escolha = cel('lxx', i);
-    let idx = r[7], auto = true;
-    if (escolha !== '') { idx = +escolha; auto = false; }
+    const idx = r[9];
+    const todas = (r[7] || []).map(j => ctx.v.gr[j]);
     const g = idx >= 0 ? ctx.v.gr[idx] : null;
-    return { g, idx, auto };
+    return { g, idx, todas };
   }
   const chaveGrega = (g) => g[3] || ('L:' + g[2]);
   const citacoesCelula = (obraId, linha) => S.citacoes.filter(c => c.secao === 'celula' && c.obra_id === obraId && c.linha === linha);
@@ -446,11 +445,12 @@
         return td('cel-strong sub2', ln(`<b class="num-strong">${h(s || '—')}</b> ${h(sig)}`, 'quebra') + ln(h(r[4]), 'morf quebra'));
       }
       case 'lxx': {
-        const { g, auto } = gregoDaLinha(i);
-        if (!g) return td('cel-gr', ln('<span class="vazio">sem equivalente</span>'));
+        const { g, todas } = gregoDaLinha(i);
+        if (!g) return td('cel-gr', ln('<span class="vazio">—</span>'));
         const sig = tradGr(chaveGrega(g)).join(', ');
-        return td('cel-gr sub3' + (auto ? ' auto' : ''), ln(h(g[0]), 'grc', 'lang="grc"') + ln(h(g[1]), 'tr') +
-          ln(`Lema: <span lang="grc">${h(g[2])}</span>${sig ? ' = ' + h(sig) : ''}`, 'raiz quebra'), auto ? 'title="Sugestão automática — toque para conferir"' : '');
+        return td('cel-gr sub3', ln(h(todas.map(x => x[0]).join(' ')), 'grc quebra', 'lang="grc"') +
+          ln(h(todas.map(x => x[1]).join(' ')), 'tr quebra') +
+          ln(`Lema: <span lang="grc">${h(g[2])}</span>${sig ? ' = ' + h(sig) : ''}`, 'raiz quebra'));
       }
       case 'sgr': {
         const { g } = gregoDaLinha(i);
@@ -557,7 +557,7 @@
   const listaTrad = (lst) => lst.length
     ? `<p class="trad-lista">${lst.map(x => `<span>${h(x)}</span>`).join('')}</p>`
     : '<p class="vazio">Sem traduções frequentes registradas.</p>';
-  const notaTrad = '<p class="dica">Traduções mais frequentes deste termo na Bíblia Livre, em todo o Antigo Testamento.</p>';
+  const notaTrad = '<p class="dica">Significados do léxico de Strong em português, mais as traduções frequentes da Bíblia Livre no Antigo Testamento.</p>';
   const verbeteEN = (e) => e && (e[2] || e[3]) ? `<details class="verbete"><summary>Verbete original de Strong (1890), em inglês</summary>
       <p><b>Definição:</b> ${h(e[2])}</p><p><b>Como a KJV traduziu:</b> ${h(e[3])}</p></details>` : '';
 
@@ -597,26 +597,19 @@
 
   function modalLxx(i) {
     const r = ctx.v.he[i];
-    const { idx, auto } = gregoDaLinha(i);
-    const gr = ctx.v.gr;
+    const { idx, todas } = gregoDaLinha(i);
+    const marcadas = new Set(r[7] || []);
     modal({
       titulo: `Septuaginta — palavra ${i + 1}`,
       largo: true,
       corpo: `<p class="ctx-he"><span lang="he" dir="rtl">${h(r[0])}</span> <span class="tr">${h(r[1])}</span></p>
-        <p class="dica">Escolha a palavra da LXX que corresponde a este termo hebraico.${r[7] >= 0 ? ` A sugestão automática (calculada sobre todo o AT) está marcada com ★.` : ''}</p>
-        ${gr.length ? `<div class="chips gregas">${gr.map((g, j) => `<button type="button" class="chip grc ${j === idx ? 'ativo' : ''}" data-j="${j}" lang="grc" title="${h(g[1])} · ${h(g[2])} · ${h(g[4])}">${h(g[0])}${j === r[7] ? ' ★' : ''}</button>`).join('')}</div>` :
-          '<p class="vazio">A LXX não tem este versículo nesta posição.</p>'}
-        <div class="lxx-opcoes">
-          <button type="button" class="btn sec pequeno" data-j="-1">Sem equivalente na LXX</button>
-          ${!auto ? '<button type="button" class="btn sec pequeno" data-j="auto">Voltar à sugestão automática</button>' : ''}
-        </div>`,
-      aoAbrir: (el) => el.querySelectorAll('[data-j]').forEach(b => b.onclick = async () => {
-        try {
-          await salvarCelula('lxx', i, b.dataset.j === 'auto' ? '' : b.dataset.j);
-          el.remove();
-        } catch (e) { toast(e.message, true); }
-      }),
-      botoes: [{ texto: 'Fechar', classe: 'sec' }]
+        ${todas.length ? `<p class="grande-gr" lang="grc">${h(todas.map(x => x[0]).join(' '))}</p>
+          <dl class="ficha lxx-ficha">${(r[7] || []).map(j => { const g = ctx.v.gr[j]; const t = tradGr(chaveGrega(g));
+            return `<dt lang="grc" class="${j === idx ? 'principal' : ''}">${h(g[0])}</dt><dd><i>${h(g[1])}</i> · lema <span lang="grc">${h(g[2])}</span>${g[3] ? ' · ' + h(g[3]) : ''}<br>${h(g[4])}${t.length ? `<br><span class="trad-mini">${h(t.join(', '))}</span>` : ''}</dd>`; }).join('')}</dl>`
+          : '<p class="vazio">A LXX não traz palavra correspondente a este termo neste versículo.</p>'}
+        <h3 class="sub">Versículo na LXX (Rahlfs)</h3>
+        <p class="verso-lxx" lang="grc">${ctx.v.gr.map((g, j) => `<span class="${marcadas.has(j) ? 'marcada' : ''}">${h(g[0])}</span>`).join(' ')}</p>`,
+      botoes: [{ texto: 'Fechar' }]
     });
   }
 
@@ -629,7 +622,7 @@
       corpo: `<p class="ctx-gr" lang="grc">${h(g[2])} <span class="tr">${h(e ? e[1] : '')}</span></p>
         <dl class="ficha"><dt>Nesta ocorrência</dt><dd><span lang="grc">${h(g[0])}</span> (${h(g[1])}) — ${h(g[4])}</dd></dl>
         <h3 class="sub">Traduções</h3>${listaTrad(tradGr(chave))}
-        <p class="dica">Calculadas pelas palavras hebraicas que a LXX verte com este termo e pela forma como a Bíblia Livre as traduz.</p>
+        <p class="dica">Significados do léxico de Strong em português (quando o termo tem número Strong).</p>
         ${verbeteEN(e)}`,
       botoes: [{ texto: 'Fechar' }]
     });
@@ -920,11 +913,11 @@
         <h3>Texto hebraico</h3>
         <p><b>Westminster Leningrad Codex</b> (domínio público), com lemas e morfologia da <b>Open Scriptures Hebrew Bible</b> (OSHB), licença CC BY 4.0. A descrição morfológica em português e a transliteração foram geradas a partir desses códigos.</p>
         <h3>Septuaginta</h3>
-        <p>Edição de <b>Rahlfs (1935)</b>, dados do projeto CenterBLC/LXX (licença MIT). A ligação de cada palavra hebraica à palavra grega é uma <b>sugestão estatística</b> (calculada sobre todo o AT) e pode ser corrigida em cada linha.</p>
+        <p>Edição de <b>Rahlfs (1935)</b>, dados do projeto CenterBLC/LXX (licença MIT). Todas as palavras do versículo grego aparecem na tabela; a distribuição delas pelas linhas hebraicas foi feita por alinhamento estatístico calculado sobre todo o AT.</p>
         <h3>Léxico</h3>
-        <p><b>Strong’s Exhaustive Concordance</b> (1890), hebraico e grego, em domínio público (Open Scriptures). O verbete original, em inglês, aparece só para consulta.</p>
-        <h3>Traduções e correspondência com o português</h3>
-        <p>As traduções de cada termo e de cada raiz, e a palavra portuguesa de cada linha da coluna “Texto Bíblico”, foram calculadas por alinhamento estatístico entre o texto hebraico e a Bíblia Livre em todo o Antigo Testamento (modelo de alinhamento palavra a palavra, nas duas direções). É um levantamento de como a Bíblia Livre de fato verte cada termo, não um dicionário. A correspondência de cada linha pode ser corrigida.</p>
+        <p><b>Strong’s Exhaustive Concordance</b> (1890), hebraico e grego, em domínio público (Open Scriptures). As traduções possíveis de cada termo são os significados do Strong vertidos para o português, somados às traduções mais frequentes da Bíblia Livre. O verbete original, em inglês, aparece na janela de detalhes.</p>
+        <h3>Correspondência com o português</h3>
+        <p>A palavra portuguesa de cada linha da coluna “Texto Bíblico” foi distribuída por alinhamento estatístico entre o texto hebraico e a Bíblia Livre em todo o Antigo Testamento. Toda palavra do versículo aparece em alguma linha; a correspondência de cada linha pode ser corrigida.</p>
         <h3>Contagens</h3>
         <p>Ocorrências contadas por lema (número Strong) no livro e em todo o Antigo Testamento hebraico.</p>
       </div>`,
