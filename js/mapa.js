@@ -26,13 +26,22 @@
       <path d="M24 44l6-16 6 16z" fill="#4a3017"/>
       <path d="M30 8V3M14 32l-8-4M48 32l9-4" stroke="#4a3017" stroke-width="2.2" stroke-linecap="round"/>
       <path d="M2 45h60" stroke="#4a3017" stroke-width="3" stroke-linecap="round"/></svg>`,
+    monte: `<svg viewBox="0 0 72 50" class="svg-monte">
+      <path d="M2 48 22 18l7 9 13-23 28 44z" fill="#a7825a" stroke="#4a3017" stroke-width="2.4" stroke-linejoin="round"/>
+      <path d="M42 4 50 16l-4-1-4 4-3-3-4 2z" fill="#fbf6ea" stroke="#4a3017" stroke-width="1.6" stroke-linejoin="round"/>
+      <path d="M22 18l4 6-3-1-3 3-2-2z" fill="#fbf6ea" stroke="#4a3017" stroke-width="1.4" stroke-linejoin="round"/>
+      <path d="M42 4c-2 12-8 22-6 44M29 27c-3 7-5 13-4 21" stroke="#6e4b27" stroke-width="1.8" fill="none" stroke-linecap="round"/>
+      <path d="M1 49h70" stroke="#4a3017" stroke-width="3" stroke-linecap="round"/></svg>`,
     x: (cor) => `<svg viewBox="0 0 40 40" class="svg-x"><path d="M8 8l24 24M32 8 8 32" stroke="#fff" stroke-width="11" stroke-linecap="round"/><path d="M8 8l24 24M32 8 8 32" stroke="${cor}" stroke-width="6.5" stroke-linecap="round"/></svg>`
   };
+  const DICA_SELECAO = 'Toque num elemento para editar, mudar a cor ou apagar. Arraste o elemento para mudá-lo de lugar, ou arraste o mapa para movê-lo.';
   const FERRAMENTAS = [
+    { id: 'selecao', nome: 'Seleção', dica: DICA_SELECAO, ico: '<svg viewBox="0 0 24 24"><path d="M5 3l14 8-6 1.6L10 19z"/><path d="M13 12.6 17.5 19"/></svg>' },
     { id: 'local', nome: 'Localização', dica: 'Toque no mapa para marcar o local.', ico: '<svg viewBox="0 0 24 24"><path d="M12 22s7-7.2 7-12.5A7 7 0 0 0 5 9.5C5 14.8 12 22 12 22z"/><circle cx="12" cy="9.5" r="2.5"/></svg>' },
     { id: 'texto', nome: 'Texto', dica: 'Toque no mapa onde o texto deve ficar.', ico: '<svg viewBox="0 0 24 24"><path d="M5 6V4h14v2M12 4v16M9 20h6"/></svg>' },
     { id: 'x', nome: 'Marcar com X', dica: 'Toque no mapa para colocar o X. Ele fica sempre por cima.', ico: '<svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6 6 18"/></svg>' },
     { id: 'cidade', nome: 'Cidade fortificada', dica: 'Toque no mapa para colocar a cidade.', ico: '<svg viewBox="0 0 24 24"><path d="M3 21V10h3V7h3v3h2V5h2v5h2V7h3v3h3v11z"/><path d="M10 21v-4a2 2 0 0 1 4 0v4"/></svg>' },
+    { id: 'monte', nome: 'Monte', dica: 'Toque no mapa para colocar o monte.', ico: '<svg viewBox="0 0 24 24"><path d="M2 20 9 9l3 4 4-8 6 15z"/><path d="M14.2 8.6 16 10l1.4-1"/></svg>' },
     { id: 'tenda', nome: 'Acampamento', dica: 'Toque no mapa para colocar a tenda.', ico: '<svg viewBox="0 0 24 24"><path d="M2 20 12 4l10 16z"/><path d="M12 4l3 16M9.5 20 12 13l2.5 7"/></svg>' },
     { id: 'seta', nome: 'Seta', dica: 'Toque no ponto de partida e depois no ponto para onde a seta aponta.', ico: '<svg viewBox="0 0 24 24"><path d="M4 20 19 5M10 5h9v9"/></svg>' },
     { id: 'seta-tracejada', nome: 'Seta pontilhada', dica: 'Toque no ponto de partida e depois no destino.', ico: '<svg viewBox="0 0 24 24"><path d="M4 20l2-2m3-3 2-2m3-3 2-2" /><path d="M11 5h8v8"/></svg>' },
@@ -47,7 +56,8 @@
     const estado = {
       vista: opcoes.vista || null,
       elementos: (opcoes.elementos || []).map(e => ({ ...e })),
-      ferramenta: null,
+      ferramenta: 'selecao',
+      selecionado: null,
       cor: localStorage_get('mapa-cor') || CORES[1]
     };
     el.innerHTML = `
@@ -61,7 +71,8 @@
             ${CORES.map(c => `<button type="button" class="mapa-cor ${c === estado.cor ? 'ativa' : ''}" data-cor="${c}" style="--c:${c}" aria-label="Cor ${c}"></button>`).join('')}
             <label class="mapa-cor-livre" title="Outra cor"><input type="color" value="${estado.cor}" aria-label="Escolher outra cor"></label>
           </div>
-          <p class="mapa-dica" aria-live="polite">Escolha um elemento e toque no mapa. Toque num elemento já colocado para editar ou excluir.</p>
+          <p class="mapa-dica" aria-live="polite">${DICA_SELECAO}</p>
+          <button type="button" class="mapa-limpar" data-acao="limpar"><svg viewBox="0 0 24 24"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13M10 11v6M14 11v6"/></svg>Limpar tudo</button>
         </aside>
         <div class="mapa-area">
           <div class="mapa-leaflet"></div>
@@ -70,6 +81,12 @@
             <button type="button" class="mapa-btn" data-acao="tela" title="Tela cheia" aria-label="Tela cheia"><svg viewBox="0 0 24 24"><path d="M8 3H3v5M16 3h5v5M8 21H3v-5M16 21h5v-5"/></svg></button>
           </div>
           <span class="mapa-status" aria-live="polite"></span>
+          <div class="mapa-confirma" role="alertdialog" aria-modal="false" aria-labelledby="mapa-confirma-txt" hidden>
+            <div class="mapa-confirma-cartao">
+              <p id="mapa-confirma-txt"></p>
+              <div class="mapa-confirma-acoes"><button type="button" class="ed-ok" data-conf="nao">Cancelar</button><button type="button" class="ed-excluir" data-conf="sim">Apagar tudo</button></div>
+            </div>
+          </div>
         </div>
       </div>`;
     const $mapa = el.querySelector('.mapa-leaflet');
@@ -97,7 +114,7 @@
     else map.fitBounds(REGIAO);
 
     // ------------------------------------------------------------ salvar
-    let timer = null;
+    let timer = null, arrastouEm = 0;
     function marcar(txt) { $status.textContent = txt; $status.classList.toggle('visivel', !!txt); }
     function salvarJa() {
       const c = map.getCenter();
@@ -129,13 +146,20 @@
       remover(e.id);
       const ls = [];
       // com uma ferramenta ativa, tocar num elemento conta como tocar no mapa (ex.: seta que sai de uma cidade)
-      const clicavel = (layer) => { layer.on('click', (ev) => { L.DomEvent.stop(ev); if (estado.ferramenta) aoClicarMapa(ev.latlng); else editar(e, ev.latlng); }); return layer; };
+      const clicavel = (layer) => { layer.on('click', (ev) => {
+        L.DomEvent.stop(ev);
+        if (Date.now() - arrastouEm < 350) return;   // fim de um arraste, não um toque
+        if (estado.ferramenta && estado.ferramenta !== 'selecao') aoClicarMapa(ev.latlng);
+        else { selecionar(e.id); editar(e, ev.latlng); }
+      }); return layer; };
       const arrastavel = (m) => {
+        m.on('dragstart', () => { map.closePopup(); selecionar(e.id); });
         m.on('dragend', () => { const p = m.getLatLng(); e.lat = p.lat; e.lng = p.lng; salvar(); });
         return m;
       };
       if (e.tipo === 'local') ls.push(arrastavel(clicavel(L.marker([e.lat, e.lng], { draggable: true, icon: iconeRotulado(SVG.local, e.nome, 'mk-local', 32, 40, 40) }))));
       if (e.tipo === 'cidade') ls.push(arrastavel(clicavel(L.marker([e.lat, e.lng], { draggable: true, icon: iconeRotulado(SVG.cidade, e.nome, 'mk-cidade', 56, 46, 40) }))));
+      if (e.tipo === 'monte') ls.push(arrastavel(clicavel(L.marker([e.lat, e.lng], { draggable: true, icon: iconeRotulado(SVG.monte, e.nome, 'mk-monte', 62, 44, 42) }))));
       if (e.tipo === 'tenda') ls.push(arrastavel(clicavel(L.marker([e.lat, e.lng], { draggable: true, icon: iconeRotulado(SVG.tenda, e.nome, 'mk-tenda', 50, 38, 34) }))));
       if (e.tipo === 'x') ls.push(arrastavel(clicavel(L.marker([e.lat, e.lng], { draggable: true, pane: 'panelX', icon: L.divIcon({ className: 'mk mk-x', html: SVG.x(e.cor || '#b3261e'), iconSize: [40, 40], iconAnchor: [20, 20] }) }))));
       if (e.tipo === 'texto') {
@@ -157,19 +181,35 @@
       }
       ls.forEach(l => l.addTo(map));
       camadas.set(e.id, ls);
+      if (estado.selecionado === e.id) marcarSelecao(e.id, true);
       return ls;
+    }
+    // ------------------------------------------------------------ seleção
+    function elementosDe(id) {
+      return (camadas.get(id) || []).map(l => (l.getElement ? l.getElement() : l._path)).filter(Boolean);
+    }
+    function marcarSelecao(id, on) { elementosDe(id).forEach(n => n.classList.toggle('selecionado', on)); }
+    function selecionar(id) {
+      if (estado.selecionado && estado.selecionado !== id) marcarSelecao(estado.selecionado, false);
+      estado.selecionado = id || null;
+      if (id) marcarSelecao(id, true);
+    }
+    function apagarElemento(id) {
+      estado.elementos = estado.elementos.filter(x => x.id !== id); remover(id);
+      if (estado.selecionado === id) estado.selecionado = null;
+      map.closePopup(); salvar();
     }
     estado.elementos.forEach(desenhar);
 
     // ------------------------------------------------------------ editor (popup)
     function editar(e, onde) {
-      const temNome = ['local', 'cidade', 'tenda'].includes(e.tipo);
+      const temNome = ['local', 'cidade', 'tenda', 'monte'].includes(e.tipo);
       const temCor = ['texto', 'x', 'seta', 'seta-tracejada', 'linha'].includes(e.tipo);
       const titulo = (FERRAMENTAS.find(f => f.id === e.tipo) || {}).nome;
       const div = L.DomUtil.create('div', 'mapa-editor');
       div.innerHTML = `
         <p class="mapa-editor-titulo">${h(titulo)}</p>
-        ${temNome ? `<label>Nome<input class="ed-nome" value="${h(e.nome || '')}" placeholder="Ex.: Ur dos Caldeus" maxlength="60"></label>` : ''}
+        ${temNome ? `<label>Nome<input class="ed-nome" value="${h(e.nome || '')}" placeholder="${e.tipo === 'monte' ? 'Ex.: Monte Moriá' : 'Ex.: Ur dos Caldeus'}" maxlength="60"></label>` : ''}
         ${e.tipo === 'texto' ? `<label>Texto<textarea class="ed-texto" rows="2" maxlength="140">${h(e.texto || '')}</textarea></label>
           <div class="ed-tams" role="group" aria-label="Tamanho">${['p', 'm', 'g'].map(t => `<button type="button" data-tam="${t}" class="${(e.tam || 'm') === t ? 'ativo' : ''}">${{ p: 'Pequeno', m: 'Médio', g: 'Grande' }[t]}</button>`).join('')}</div>` : ''}
         ${temCor ? `<div class="ed-cores">${CORES.map(c => `<button type="button" data-cor="${c}" style="--c:${c}" class="${(e.cor || '') === c ? 'ativa' : ''}" aria-label="Cor ${c}"></button>`).join('')}<label class="mapa-cor-livre"><input type="color" value="${h(e.cor || '#b3261e')}"></label></div>` : ''}
@@ -191,9 +231,8 @@
       div.querySelectorAll('[data-tam]').forEach(b => b.onclick = () => {
         e.tam = b.dataset.tam; div.querySelectorAll('[data-tam]').forEach(x => x.classList.toggle('ativo', x === b)); aplicar();
       });
-      div.querySelector('.ed-excluir').onclick = () => {
-        estado.elementos = estado.elementos.filter(x => x.id !== e.id); remover(e.id); map.closePopup(pop); salvar();
-      };
+      div.querySelector('.ed-excluir').onclick = () => apagarElemento(e.id);
+      pop.on('remove', () => { if (estado.selecionado === e.id) selecionar(null); });
       div.querySelector('.ed-ok').onclick = () => map.closePopup(pop);
       div.addEventListener('keydown', ev => { if (ev.key === 'Enter' && !ev.shiftKey && ev.target.tagName === 'INPUT') { ev.preventDefault(); map.closePopup(pop); } });
       const foco = div.querySelector('.ed-nome, .ed-texto'); if (foco) setTimeout(() => { foco.focus(); foco.select(); }, 60);
@@ -202,18 +241,20 @@
     // ------------------------------------------------------------ ferramentas
     let inicioSeta = null, previa = null, tracando = null;
     function escolher(id) {
-      estado.ferramenta = estado.ferramenta === id ? null : id;
+      // a Seleção é o modo de repouso: sair de outra ferramenta volta para ela
+      estado.ferramenta = (!id || estado.ferramenta === id) ? 'selecao' : id;
+      if (estado.ferramenta !== 'selecao') { selecionar(null); map.closePopup(); }
       el.querySelectorAll('.mapa-ferr').forEach(b => {
         const on = b.dataset.ferr === estado.ferramenta;
         b.classList.toggle('ativa', on); b.setAttribute('aria-pressed', on);
       });
       cancelarSeta();
       const f = FERRAMENTAS.find(x => x.id === estado.ferramenta);
-      $dica.textContent = f ? f.dica : 'Escolha um elemento e toque no mapa. Toque num elemento já colocado para editar ou excluir.';
+      $dica.textContent = f.dica;
       casca.classList.toggle('desenhando', estado.ferramenta === 'linha');
-      casca.classList.toggle('com-ferramenta', !!estado.ferramenta);
+      casca.classList.toggle('com-ferramenta', estado.ferramenta !== 'selecao');
       if (estado.ferramenta === 'linha') { map.dragging.disable(); } else { map.dragging.enable(); }
-      if (window.gsap && !reduzir && f) gsap.fromTo($dica, { autoAlpha: 0, y: 4 }, { autoAlpha: 1, y: 0, duration: 0.25, ease: 'power3.out' });
+      if (window.gsap && !reduzir) gsap.fromTo($dica, { autoAlpha: 0, y: 4 }, { autoAlpha: 1, y: 0, duration: 0.25, ease: 'power3.out' });
     }
     function cancelarSeta() { inicioSeta = null; if (previa) { map.removeLayer(previa); previa = null; } }
     function novo(e) { estado.elementos.push(e); desenhar(e); salvar(); return e; }
@@ -227,6 +268,28 @@
       estado.cor = ev.target.value; localStorage_set('mapa-cor', estado.cor);
       el.querySelectorAll('.mapa-painel [data-cor]').forEach(x => x.classList.remove('ativa'));
     };
+    const $conf = el.querySelector('.mapa-confirma');
+    function fecharConfirma() { $conf.hidden = true; }
+    el.querySelector('[data-acao="limpar"]').onclick = () => {
+      const n = estado.elementos.length;
+      if (!n) { marcar('O mapa já está vazio'); setTimeout(() => marcar(''), 1400); return; }
+      escolher(null); map.closePopup();
+      $conf.querySelector('p').textContent = `Apagar ${n === 1 ? 'o elemento' : 'todos os ' + n + ' elementos'} deste versículo? A posição e o zoom do mapa continuam.`;
+      $conf.hidden = false;
+      if (window.gsap && !reduzir) gsap.fromTo($conf.firstElementChild, { autoAlpha: 0, y: 10, scale: 0.97 }, { autoAlpha: 1, y: 0, scale: 1, duration: 0.24, ease: 'power3.out' });
+      $conf.querySelector('[data-conf="nao"]').focus();
+    };
+    $conf.onclick = (ev) => {
+      const b = ev.target.closest('[data-conf]');
+      if (!b && ev.target !== $conf) return;
+      if (b && b.dataset.conf === 'sim') {
+        estado.elementos.forEach(e => remover(e.id));
+        estado.elementos = []; estado.selecionado = null;
+        clearTimeout(timer); salvarJa();
+      }
+      fecharConfirma();
+    };
+    L.DomEvent.disableClickPropagation($conf);
     el.querySelector('[data-acao="recorte"]').onclick = () => map.flyToBounds(REGIAO, { duration: reduzir ? 0 : 0.8 });
     el.querySelector('[data-acao="tela"]').onclick = () => {
       casca.classList.toggle('tela-cheia');
@@ -234,13 +297,15 @@
       setTimeout(() => map.invalidateSize(), 60);
     };
 
-    map.on('click', (ev) => aoClicarMapa(ev.latlng));
+    map.on('click', (ev) => { if (Date.now() - arrastouEm > 350) aoClicarMapa(ev.latlng); });
     function aoClicarMapa(ll) {
       const ev = { latlng: ll };
-      const f = estado.ferramenta; if (!f || f === 'linha') return;
+      const f = estado.ferramenta;
+      if (f === 'selecao') { selecionar(null); return; }
+      if (!f || f === 'linha') return;
       const { lat, lng } = ll;
-      if (['local', 'cidade', 'tenda'].includes(f)) { const e = novo({ id: uid(), tipo: f, lat, lng, nome: '' }); escolher(null); editar(e); }
-      else if (f === 'texto') { const e = novo({ id: uid(), tipo: 'texto', lat, lng, texto: 'Texto', cor: estado.cor === '#2a1c10' ? '#ffffff' : estado.cor, tam: 'm' }); escolher(null); editar(e); }
+      if (['local', 'cidade', 'tenda', 'monte'].includes(f)) { const e = novo({ id: uid(), tipo: f, lat, lng, nome: '' }); escolher(null); selecionar(e.id); editar(e); }
+      else if (f === 'texto') { const e = novo({ id: uid(), tipo: 'texto', lat, lng, texto: 'Texto', cor: estado.cor === '#2a1c10' ? '#ffffff' : estado.cor, tam: 'm' }); escolher(null); selecionar(e.id); editar(e); }
       else if (f === 'x') { novo({ id: uid(), tipo: 'x', lat, lng, cor: estado.cor }); }
       else if (f === 'seta' || f === 'seta-tracejada') {
         if (!inicioSeta) {
@@ -280,12 +345,51 @@
       if (tracando.pts.length > 1) novo({ id: uid(), tipo: 'linha', cor: estado.cor, pontos: tracando.pts.map(p => [+p.lat.toFixed(5), +p.lng.toFixed(5)]) });
       tracando = null;
     }
+    // Seleção: arrastar uma seta ou linha selecionada muda o desenho de lugar (o mapa não se move junto)
+    let movendo = null;
+    function aoDescerSelecao(ev) {
+      if (estado.ferramenta !== 'selecao' || !estado.selecionado || ev.button > 0) return;
+      const e = estado.elementos.find(x => x.id === estado.selecionado);
+      if (!e || !e.pontos || !elementosDe(e.id).some(n => n.contains(ev.target))) return;
+      ev.stopPropagation(); ev.preventDefault();
+      map.closePopup(); selecionar(e.id); map.dragging.disable();
+      movendo = { e, ini: map.mouseEventToLatLng(ev), orig: e.pontos.map(p => p.slice()), mexeu: false, id: ev.pointerId };
+      cont.setPointerCapture && cont.setPointerCapture(ev.pointerId);
+    }
+    function aoMoverSelecao(ev) {
+      if (!movendo || ev.pointerId !== movendo.id) return;
+      const p = map.mouseEventToLatLng(ev), dLat = p.lat - movendo.ini.lat, dLng = p.lng - movendo.ini.lng;
+      movendo.e.pontos = movendo.orig.map(([a, b]) => [+(a + dLat).toFixed(5), +(b + dLng).toFixed(5)]);
+      movendo.mexeu = true;
+      desenhar(movendo.e);
+    }
+    function aoSubirSelecao(ev) {
+      if (!movendo || ev.pointerId !== movendo.id) return;
+      const { e, mexeu } = movendo; movendo = null;
+      map.dragging.enable();
+      if (mexeu) { arrastouEm = Date.now(); salvar(); }
+    }
+    cont.addEventListener('pointerdown', aoDescerSelecao, true);
+    window.addEventListener('pointermove', aoMoverSelecao);
+    window.addEventListener('pointerup', aoSubirSelecao);
+    window.addEventListener('pointercancel', aoSubirSelecao);
     cont.addEventListener('pointerdown', aoDescer);
     cont.addEventListener('pointermove', aoMover);
     cont.addEventListener('pointerup', aoSubir);
     cont.addEventListener('pointercancel', aoSubir);
-    const aoTecla = (ev) => { if (ev.key === 'Escape' && estado.ferramenta) escolher(null); };
+    const aoTecla = (ev) => {
+      if (ev.key === 'Escape') {
+        if (!$conf.hidden) return fecharConfirma();
+        if (estado.ferramenta !== 'selecao') return escolher(null);
+        selecionar(null); map.closePopup();
+      }
+      // Delete apaga o elemento selecionado (fora de campos de texto)
+      if ((ev.key === 'Delete' || ev.key === 'Backspace') && estado.selecionado && !/INPUT|TEXTAREA/.test((ev.target && ev.target.tagName) || '')) {
+        ev.preventDefault(); apagarElemento(estado.selecionado);
+      }
+    };
     document.addEventListener('keydown', aoTecla);
+    escolher('selecao');
 
     setTimeout(() => map.invalidateSize(), 50);
     if (window.gsap && !reduzir) gsap.from(el.querySelectorAll('.mapa-ferr'), { autoAlpha: 0, y: 6, duration: 0.3, stagger: 0.025, ease: 'power3.out', clearProps: 'all' });
@@ -295,6 +399,9 @@
       destruir() {
         if (timer) { clearTimeout(timer); salvarJa(); }
         document.removeEventListener('keydown', aoTecla);
+        window.removeEventListener('pointermove', aoMoverSelecao);
+        window.removeEventListener('pointerup', aoSubirSelecao);
+        window.removeEventListener('pointercancel', aoSubirSelecao);
         document.body.classList.remove('mapa-tela-cheia');
         map.remove();
       }

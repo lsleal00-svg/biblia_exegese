@@ -33,6 +33,7 @@
     left: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg>',
     right: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 5l7 7-7 7"/></svg>',
     x: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg>',
+    baixar: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v12M7 10l5 5 5-5M5 20h14"/></svg>',
     out: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 4h4v16h-4M10 8l-4 4 4 4M6 12h10"/></svg>',
     info: '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 11v6M12 7.5v.5"/></svg>',
     pencil: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15.5 4.5l4 4L8 20H4v-4z"/><path d="M13.5 6.5l4 4"/></svg>',
@@ -218,6 +219,7 @@
           </div>
         </form>
         <p class="login-msg" id="login-msg"></p>
+        <button class="btn sec btn-instalar" type="button" data-acao="instalar">${I.baixar} Instalar no celular</button>
       </div>
       <p class="login-rodape">Texto em português: Bíblia Livre (BLIVRE) · CC BY 4.0</p>
     </main>`;
@@ -254,6 +256,7 @@
       <a href="#/" class="marca"><img src="img/logo-64.png" alt="" width="38" height="38"><span>Bíblia <em>&amp;</em> Exegese</span></a>
       <div class="topo-meio">${extra}</div>
       <div class="topo-dir">
+        <button class="icone claro" data-acao="instalar" title="Instalar no celular" aria-label="Instalar no celular">${I.baixar}</button>
         <button class="icone claro" data-acao="fontes" title="Fontes e licenças" aria-label="Fontes e licenças">${I.info}</button>
         <span class="usuario" title="${h(S.user.email || '')}">${h(nome)}${D.modo === 'demo' ? ' <small>(demonstração)</small>' : ''}</span>
         <button class="icone claro" data-acao="sair" title="Sair" aria-label="Sair">${I.out}</button>
