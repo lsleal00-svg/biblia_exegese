@@ -269,11 +269,14 @@ for ref, txt in zip(vref, por):
     c, n = cv.split(':')
     PT[bk][(int(c), int(n))] = txt.strip()
 
-# O corpus segue a versificação portuguesa (Almeida), mas perdeu alguns versículos
-# na conversão. Correções conferidas em ebible.org/porbr2018:
-PATCH = {('GEN', 31, 55): 'E levantou-se Labão de manhã, beijou seus filhos e suas filhas, e os abençoou; e retrocedeu e voltou a seu lugar.'}
-for (bk, c, n), txt in PATCH.items():
-    PT[bk][(c, n)] = txt
+# O corpus traz a numeração portuguesa (Almeida/KJV), mas encaixada nas casas da numeração
+# hebraica: os versículos que sobravam no fim de um capítulo se perderam (Gn 31:55, Êx 8:29-32,
+# Lv 6:24-30, Nm 16:36-50 etc.). Eles voltam de tools/blivre_faltantes.tsv.
+FALTANTES = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'blivre_faltantes.tsv')
+for l in open(FALTANTES, encoding='utf-8'):
+    if l.startswith('#') or not l.strip(): continue
+    bk, c, n, txt = l.rstrip('\n').split('\t', 3)
+    PT[bk][(int(c), int(n))] = txt
 
 # mapa versificação portuguesa/KJV -> hebraica (WLC), do VerseMap do morphhb
 KJV2WLC = {}
@@ -373,13 +376,11 @@ def alinhar(hw, itens, tf, tr):
 
 # ---------------------------------------------------------------- português (Bíblia Livre)
 cache = os.path.join(SRC, 'pt_tokens2.pkl')
-if os.path.exists(cache):
-    PTTOK = pickle.load(open(cache, 'rb'))
-else:
-    print('lematizando a Bíblia Livre...')
+PTTOK = pickle.load(open(cache, 'rb')) if os.path.exists(cache) else {}
+keys = [(bk, c, n) for bk in PT for (c, n) in PT[bk] if (bk, c, n) not in PTTOK]
+if keys:
+    print('lematizando a Bíblia Livre...', len(keys))
     nlp = spacy.load('pt_core_news_sm', disable=['parser', 'ner'])
-    keys = [(bk, c, n) for bk in PT for (c, n) in PT[bk]]
-    PTTOK = {}
     for k, doc in zip(keys, nlp.pipe((PT[k[0]][(k[1], k[2])] for k in keys), batch_size=512)):
         toks = []
         for tk in doc:
@@ -410,7 +411,7 @@ for (bk, c, n), toks in PTTOK.items():
     hw = ALL[b].get(hk)
     if not hw: continue
     src = ['NULL'] + [tk for w in hw for tk in src_tokens(w)]
-    ppairs.append((src, [x[1] for x in toks], hw, toks, b, hk))
+    ppairs.append((src, [x[1] for x in toks], hw, toks, b, hk, (c, n)))
 print('pares hebraico-português:', len(ppairs))
 tp = modelo1([(src, tgt) for src, tgt, *_ in ppairs], 'he->pt')
 tpr = modelo1([(['NULL'] + tgt, src[1:]) for src, tgt, *_ in ppairs], 'pt->he')
@@ -431,6 +432,80 @@ for b, vs in ALL.items():
 print('pares hebraico-grego:', len(gpairs))
 tg = modelo1(gpairs, 'he->gr')
 tgr = modelo1([(['NULL'] + tgt, src[1:]) for src, tgt in gpairs], 'gr->he')
+
+# ---------------------------------------------------------------- LXX: versículo correspondente
+# A LXX de Rahlfs reordena trechos (Êx 35-40, Nm 1, 6, 10, 26...). O mapa vem da tabela TVTMS do
+# STEPBible (CC BY); cada candidato é conferido pelo alinhamento, e fica o que mais corresponde.
+def _tvtms_refs(expr):
+    expr = expr.strip()
+    if not expr or expr.startswith('Absent'):
+        m = re.search(r'\[=\s*([^\]]+)\]', expr)
+        if not m: return None
+        expr = m.group(1)
+    expr = re.sub(r'\[.*?\]', '', expr).strip()
+    out, ch = [], None
+    for part in re.split(r'[;,]', expr):
+        part = re.sub(r'^[A-Za-z0-9]+\.', '', part.strip())
+        m = re.match(r'(?:(\d+):)?(\d+)(\.\d+)?(?:-(?:(\d+):)?(\d+)(?:\.\d+)?)?$', part)
+        if not m: continue
+        if m.group(1): ch = int(m.group(1))
+        elif ch is None: continue
+        a = int(m.group(2))
+        if m.group(3) and m.group(5) and not m.group(4): out.append((ch, a)); continue
+        if m.group(5):
+            ch2 = int(m.group(4)) if m.group(4) else ch; b = int(m.group(5))
+            out += [(ch, x) for x in range(a, b + 1)] if ch2 == ch else [(ch, a), (ch2, b)]
+        else: out.append((ch, a))
+    return out
+
+def carregar_tvtms(path):
+    TV = {'Gen': 'Gen', 'Exo': 'Exod', 'Lev': 'Lev', 'Num': 'Num', 'Deu': 'Deut', 'Jos': 'Josh', 'Jdg': 'Judg', 'Rut': 'Ruth'}
+    M = {}
+    if not os.path.exists(path): return M
+    linhas = open(path, encoding='utf-8-sig').read().split('\n')
+    i0 = next(i for i, l in enumerate(linhas) if l.startswith('#DataStart(Condensed)'))
+    i1 = next(i for i, l in enumerate(linhas) if l.startswith('#DataEnd(Condensed)'))
+    book = gi = None
+    for l in linhas[i0:i1]:
+        c = l.rstrip('\t').split('\t')
+        if l.startswith('$'):
+            book = TV.get(c[0][1:4]); gi = next((k for k, x in enumerate(c) if x.strip().startswith('Greek')), None); continue
+        if not book or gi is None or len(c) <= gi or c[0].startswith('TEST') or not c[1].strip(): continue
+        k, g = _tvtms_refs(c[1]), _tvtms_refs(c[gi])
+        if not k or g is None: continue
+        k, g = list(dict.fromkeys(k)), list(dict.fromkeys(g))
+        if len(k) == len(g):
+            for x, y in zip(k, g): M.setdefault((book,) + x, []).append(y)
+        else:
+            for x in k: M.setdefault((book,) + x, []).extend(g)
+    return M
+TVTMS = carregar_tvtms(os.path.join(SRC, 'tvtms.txt'))
+
+def nota_lxx(hw, gw):
+    hs = {tk for w in hw for tk in src_tokens(w) if tk.startswith('H')}
+    its = [g['lex'] for g in gw if g['m'].split('.')[0] not in FUNC_GR]
+    if not hs or not its: return 0
+    s = sum(max(0.5 * (tg.get((x, l), 0) + tgr.get((l, x), 0)) for x in hs) for l in its) / len(its)
+    return s * min(1, len(its) / len(hs)) ** 0.3 * min(1, len(hs) / len(its)) ** 0.3
+
+def lxx_do_versiculo(b, kjv, hk, hw):
+    """Devolve (palavras gregas, lista de versículos da LXX usados)."""
+    lb = LXX_NAME.get(b)
+    if not lb or lb not in LXX: return [], []
+    G = LXX[lb]
+    cands = [[hk]]
+    # onde a numeração hebraica já difere da portuguesa (Êx 8, Lv 6, Nm 17, Dt 13, 23...), o
+    # CenterBLC segue a hebraica; a TVTMS só entra nos trechos que a LXX reordena.
+    t = TVTMS.get((b,) + kjv) if hk == kjv else None
+    if t: cands.append(list(dict.fromkeys(t)))
+    melhor, nm = None, -1
+    for cand in cands:
+        gw = [w for k in cand for w in G.get(k, [])]
+        if not gw: continue
+        sc = nota_lxx(hw, gw) + (0 if cand == [hk] else 0.08)   # a tabela TVTMS tem a preferência; o alinhamento só a corrige quando ela não confere
+        if sc > nm: melhor, nm = cand, sc
+    if not melhor: return [], []
+    return [w for k in melhor for w in G.get(k, [])], melhor
 
 def grego_por_linha(hw, gw):
     a = alinhar(hw, gr_itens(gw), tg, tgr)
@@ -465,10 +540,9 @@ def lema_valido(lem, pos):
 
 MEAN_H = defaultdict(Counter)
 MEAN_G = defaultdict(Counter)
-for src, tgt, hw, toks, b, hk in ppairs:
+for src, tgt, hw, toks, b, hk, (c, n) in ppairs:
     linhas, a = pt_por_linha(hw, toks)
-    lb = LXX_NAME.get(b)
-    gw = LXX.get(lb, {}).get(hk, []) if lb else []
+    gw = lxx_do_versiculo(b, (c, n), hk, hw)[0]
     gprinc = grego_por_linha(hw, gw)[1] if gw else [-1] * len(hw)
     for i, js in enumerate(linhas):
         h = main_strong(hw[i]['lemma'])
@@ -526,7 +600,7 @@ for b in WANT:
     for (c, n), txt in sorted(PT[code].items()):
         hk = KJV2WLC.get((b, c, n), (c, n))
         hw = vs.get(hk, [])
-        gw = LXX.get(lb, {}).get(hk, []) if lb else []
+        gw, gks = lxx_do_versiculo(b, (c, n), hk, hw) if hw else ([], [])
         toks_v = PTTOK.get((code, c, n), [])
         glinhas, gprinc = grego_por_linha(hw, gw) if (hw and gw) else ([[] for _ in hw], [-1] * len(hw))
         plinhas = pt_por_linha(hw, toks_v)[0] if (hw and toks_v) else [[] for _ in hw]
@@ -554,6 +628,8 @@ for b in WANT:
         verses[f'{c}:{n}'] = {'pt': txt, 'he': rows, 'gr': g_rows}
         if hk != (c, n):
             verses[f'{c}:{n}']['heb_ref'] = f'{hk[0]}:{hk[1]}'
+        if gks and gks != [hk]:
+            verses[f'{c}:{n}']['lxx_ref'] = '; '.join(f'{x}:{y}' for x, y in gks)
     caps = defaultdict(int)
     for (c, n) in PT[code]:
         caps[c] = max(caps[c], n)

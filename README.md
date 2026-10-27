@@ -1,11 +1,11 @@
-# Bíblia & Exegese — Etapa 1 (Gênesis)
+# Bíblia & Exegese — Pentateuco
 
 Aplicativo web de estudo exegético do Antigo Testamento. Interface no **GitHub Pages**, login e dados do usuário no **Supabase**.
 
 ## O que já funciona
 
 - Login com **GitHub** (via Supabase) ou e-mail e senha.
-- Estante com os 39 livros do AT na ordem da **Bíblia Hebraica** (Torá, Profetas Anteriores, Profetas Posteriores, Os Doze, Escritos). Só Gênesis está aberto nesta etapa.
+- Estante com os 39 livros do AT na ordem da **Bíblia Hebraica** (Torá, Profetas Anteriores, Profetas Posteriores, Os Doze, Escritos). Todo o Pentateuco (Gênesis a Deuteronômio) está aberto. Cada divisão tem a sua cor na estante.
 - Livro → **capítulo** → **versículo**, pela versificação portuguesa (Almeida / Bíblia Livre).
 - Tabela por versículo, com uma linha para cada palavra hebraica:
   - **Texto Bíblico**: já vem com a palavra da Bíblia Livre que corresponde a cada termo hebraico (por alinhamento automático), e você pode corrigir. O **+** cria colunas de tradução suas.
@@ -18,7 +18,7 @@ Aplicativo web de estudo exegético do Antigo Testamento. Interface no **GitHub 
 - Todas as colunas têm a mesma largura. Texto longo aparece com reticências e abre completo quando você toca nele.
 - Citações: na primeira vez, o app pede a obra e a referência completa. Depois disso, a mesma obra só pede **tipo (direta/indireta)** e **página**, e a página entra no fim da referência automaticamente.
 - Seção inferior: **Espírito de Profecia**, **Contexto Histórico** (bloco "Ano" já vem pronto, e você pode criar blocos de Rei, Cidade, Região, Tribo, Profetas ou um título seu, além das citações teóricas), **Mapa** e **Aplicação** (seus comentários homiléticos). Cada item tem botões de editar, excluir e copiar.
-- **Mapa** do recorte Egito–Mesopotâmia em satélite de alta definição. O zoom e a posição ficam salvos em cada versículo. A aba **Elementos** tem localização com nome, texto com cor e tamanho, X (sempre por cima), cidade fortificada com nome, acampamento com nome, seta reta, seta pontilhada e linha pontilhada livre, todos com cor. Tudo fica salvo no versículo.
+- **Mapa** do recorte Egito–Mesopotâmia em satélite de alta definição. O zoom e a posição ficam salvos em cada versículo. A aba **Elementos** tem localização com nome, texto com cor e tamanho, X (sempre por cima), cidade fortificada com nome, acampamento com nome, seta reta, seta pontilhada e linha pontilhada livre, pincel transparente para destacar regiões, todos com cor. Ferramenta Seleção para editar, mover ou apagar; Limpar tudo; e botão para salvar o mapa como imagem PNG, exatamente no recorte da tela. Tudo fica salvo no versículo.
 - Lápis em cada palavra da coluna Texto Bíblico e no título dela, que pode ser renomeado. O olho nas colunas Hebraico, Strong Hebraico, LXX e Strong Grego recolhe a coluna numa faixa estreita; tocando nela, a coluna volta.
 - Modo demonstração sem login: `.../?demo=1`. Os dados ficam só no navegador.
 
@@ -40,10 +40,11 @@ Aplicativo web de estudo exegético do Antigo Testamento. Interface no **GitHub 
 ## Fontes e licenças
 - Português: **Bíblia Livre (BLIVRE)**, © Diego Santos, Mario Sérgio e Marco Teles, 2018. Licença CC BY 4.0. A atribuição é obrigatória e já aparece no app.
 - Hebraico: Westminster Leningrad Codex (domínio público). Lemas e morfologia da OSHB (CC BY 4.0).
-- Septuaginta: Rahlfs 1935, projeto CenterBLC/LXX (MIT).
+- Septuaginta: Rahlfs 1935, projeto CenterBLC/LXX (MIT). Nos trechos que a LXX põe em outra ordem (Êx 35-40, Nm 1, 6, 10, 26, Dt 5 etc.), a correspondência vem da tabela TVTMS do STEPBible (CC BY) e é conferida pelo alinhamento.
+- Versículos da Bíblia Livre que faltavam no corpus eBible (Gn 31:55, Êx 8:29-32, Êx 22:31, Lv 6:24-30, Nm 16:36-50, Nm 29:40, Dt 12:32, 22:30, 29:29): `tools/blivre_faltantes.tsv`, do PorBLivre (scrollmapper/bible_databases).
 - Léxico Strong (1890), hebraico e grego: domínio público.
 - Mapa: Leaflet 1.9.4 (BSD) e GSAP 3.12.5 em `vendor/`. Imagens © Esri, Maxar, Earthstar Geographics, e NASA Blue Marble (domínio público).
 
 ## Para gerar os próximos livros
-O arquivo `tools/build_data.py` (requer `text-fabric`, `spacy` e o modelo `pt_core_news_sm`) gera `data/livros/<abrev>.json`. Exemplo para Êxodo: `python3 tools/build_data.py <fontes> data/livros Exod`.
-Antes, ajuste em `js/livros.js` o `arquivo` e o `ativo: true` do livro. Para os outros livros do Pentateuco, a versificação portuguesa precisa ser conferida de novo, como foi feito com Gn 31:55.
+O arquivo `tools/build_data.py` (requer `text-fabric`, `spacy`, `simplemma` e o modelo `pt_core_news_sm`) gera `data/livros/<abrev>.json`. A pasta de fontes precisa ter também `tvtms.txt` (TVTMS do STEPBible). Exemplo: `python3 tools/build_data.py <fontes> data/livros Josh`.
+Antes, ajuste em `js/livros.js` o `arquivo` e o `ativo: true` do livro. Para cada livro novo, confira os versículos que faltam no corpus (sobras de capítulo) e acrescente-os em `tools/blivre_faltantes.tsv`.

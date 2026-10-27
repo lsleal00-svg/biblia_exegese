@@ -45,8 +45,13 @@
     { id: 'tenda', nome: 'Acampamento', dica: 'Toque no mapa para colocar a tenda.', ico: '<svg viewBox="0 0 24 24"><path d="M2 20 12 4l10 16z"/><path d="M12 4l3 16M9.5 20 12 13l2.5 7"/></svg>' },
     { id: 'seta', nome: 'Seta', dica: 'Toque no ponto de partida e depois no ponto para onde a seta aponta.', ico: '<svg viewBox="0 0 24 24"><path d="M4 20 19 5M10 5h9v9"/></svg>' },
     { id: 'seta-tracejada', nome: 'Seta pontilhada', dica: 'Toque no ponto de partida e depois no destino.', ico: '<svg viewBox="0 0 24 24"><path d="M4 20l2-2m3-3 2-2m3-3 2-2" /><path d="M11 5h8v8"/></svg>' },
+    { id: 'pincel', nome: 'Pincel', dica: 'Pinte por cima do mapa para destacar uma região. O traço é largo e transparente. Toque nele depois para mudar a cor ou a espessura.', ico: '<svg viewBox="0 0 24 24"><path d="M14.5 4.5l5 5-8.2 8.2-5-5z"/><path d="M6.3 12.7 4 20l7.3-2.3"/><path d="M17 2l5 5"/></svg>' },
     { id: 'linha', nome: 'Linha livre', dica: 'Arraste o dedo (ou o mouse) para desenhar. Solte para terminar.', ico: '<svg viewBox="0 0 24 24"><path d="M3 17c3-6 5 2 8-3s4-7 7-5 2 6 3 7" stroke-dasharray="2 3.2"/></svg>' }
   ];
+
+  const PINCEL = { p: 14, m: 26, g: 44 };
+  const PINCEL_OPAC = 0.38;
+  const desenhoLivre = (f) => f === 'linha' || f === 'pincel';
 
   function montar(el, opcoes) {
     if (!window.L) {
@@ -78,6 +83,7 @@
           <div class="mapa-leaflet"></div>
           <div class="mapa-acoes">
             <button type="button" class="mapa-btn" data-acao="recorte" title="Voltar ao recorte inteiro" aria-label="Voltar ao recorte inteiro"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8"/><path d="M12 2v4M12 18v4M2 12h4M18 12h4"/><circle cx="12" cy="12" r="2"/></svg></button>
+            <button type="button" class="mapa-btn" data-acao="png" title="Salvar o mapa como imagem (PNG)" aria-label="Salvar o mapa como imagem PNG"><svg viewBox="0 0 24 24"><path d="M12 3v11M7.5 9.5 12 14l4.5-4.5"/><path d="M4 15v4a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-4"/></svg></button>
             <button type="button" class="mapa-btn" data-acao="tela" title="Tela cheia" aria-label="Tela cheia"><svg viewBox="0 0 24 24"><path d="M8 3H3v5M16 3h5v5M8 21H3v-5M16 21h5v-5"/></svg></button>
           </div>
           <span class="mapa-status" aria-live="polite"></span>
@@ -100,10 +106,10 @@
     });
     map.attributionControl.setPrefix(false);
     const esri = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
-      maxZoom: 18, maxNativeZoom: 18, attribution: 'Imagens © Esri, Maxar, Earthstar Geographics'
+      maxZoom: 18, maxNativeZoom: 18, crossOrigin: 'anonymous', attribution: 'Imagens © Esri, Maxar, Earthstar Geographics'
     });
     const nasa = L.tileLayer('https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/BlueMarble_ShadedRelief_Bathymetry/default/GoogleMapsCompatible_Level8/{z}/{y}/{x}.jpeg', {
-      maxZoom: 18, maxNativeZoom: 8, attribution: 'Imagens: NASA Blue Marble (domínio público)'
+      maxZoom: 18, maxNativeZoom: 8, crossOrigin: 'anonymous', attribution: 'Imagens: NASA Blue Marble (domínio público)'
     });
     let falhas = 0;
     esri.on('tileerror', () => { if (++falhas === 12 && map.hasLayer(esri)) { map.removeLayer(esri); nasa.addTo(map); } });
@@ -175,6 +181,9 @@
         ls.push(clicavel(L.marker(b, { interactive: true, icon: L.divIcon({ className: 'mk mk-ponta', iconSize: [26, 26], iconAnchor: [13, 13],
           html: `<svg viewBox="0 0 26 26" style="transform:rotate(${anguloSeta(a, b)}deg)"><path d="M4 4 23 13 4 22 9 13z" fill="${h(cor)}" stroke="#fff" stroke-width="1.6" stroke-linejoin="round"/></svg>` }) })));
       }
+      if (e.tipo === 'pincel') {
+        ls.push(clicavel(L.polyline(e.pontos, { color: e.cor || '#f2c14e', weight: PINCEL[e.tam || 'm'], opacity: PINCEL_OPAC, lineCap: 'round', lineJoin: 'round', className: 'traco-pincel' })));
+      }
       if (e.tipo === 'linha') {
         ls.push(L.polyline(e.pontos, { color: '#ffffff', weight: 7, opacity: 0.5, lineCap: 'round', dashArray: '1 11', interactive: false }));
         ls.push(clicavel(L.polyline(e.pontos, { color: e.cor || '#f2c14e', weight: 4.5, lineCap: 'round', lineJoin: 'round', dashArray: '1 11' })));
@@ -204,7 +213,7 @@
     // ------------------------------------------------------------ editor (popup)
     function editar(e, onde) {
       const temNome = ['local', 'cidade', 'tenda', 'monte'].includes(e.tipo);
-      const temCor = ['texto', 'x', 'seta', 'seta-tracejada', 'linha'].includes(e.tipo);
+      const temCor = ['texto', 'x', 'seta', 'seta-tracejada', 'linha', 'pincel'].includes(e.tipo);
       const titulo = (FERRAMENTAS.find(f => f.id === e.tipo) || {}).nome;
       const div = L.DomUtil.create('div', 'mapa-editor');
       div.innerHTML = `
@@ -212,6 +221,7 @@
         ${temNome ? `<label>Nome<input class="ed-nome" value="${h(e.nome || '')}" placeholder="${e.tipo === 'monte' ? 'Ex.: Monte Moriá' : 'Ex.: Ur dos Caldeus'}" maxlength="60"></label>` : ''}
         ${e.tipo === 'texto' ? `<label>Texto<textarea class="ed-texto" rows="2" maxlength="140">${h(e.texto || '')}</textarea></label>
           <div class="ed-tams" role="group" aria-label="Tamanho">${['p', 'm', 'g'].map(t => `<button type="button" data-tam="${t}" class="${(e.tam || 'm') === t ? 'ativo' : ''}">${{ p: 'Pequeno', m: 'Médio', g: 'Grande' }[t]}</button>`).join('')}</div>` : ''}
+        ${e.tipo === 'pincel' ? `<div class="ed-tams" role="group" aria-label="Espessura">${['p', 'm', 'g'].map(t => `<button type="button" data-tam="${t}" class="${(e.tam || 'm') === t ? 'ativo' : ''}">${{ p: 'Fino', m: 'Médio', g: 'Largo' }[t]}</button>`).join('')}</div>` : ''}
         ${temCor ? `<div class="ed-cores">${CORES.map(c => `<button type="button" data-cor="${c}" style="--c:${c}" class="${(e.cor || '') === c ? 'ativa' : ''}" aria-label="Cor ${c}"></button>`).join('')}<label class="mapa-cor-livre"><input type="color" value="${h(e.cor || '#b3261e')}"></label></div>` : ''}
         <div class="ed-acoes"><button type="button" class="ed-excluir">Excluir</button><button type="button" class="ed-ok">Pronto</button></div>`;
       L.DomEvent.disableClickPropagation(div); L.DomEvent.disableScrollPropagation(div);
@@ -251,9 +261,11 @@
       cancelarSeta();
       const f = FERRAMENTAS.find(x => x.id === estado.ferramenta);
       $dica.textContent = f.dica;
-      casca.classList.toggle('desenhando', estado.ferramenta === 'linha');
+      casca.classList.toggle('desenhando', desenhoLivre(estado.ferramenta));
       casca.classList.toggle('com-ferramenta', estado.ferramenta !== 'selecao');
-      if (estado.ferramenta === 'linha') { map.dragging.disable(); } else { map.dragging.enable(); }
+      if (desenhoLivre(estado.ferramenta)) { map.dragging.disable(); } else { map.dragging.enable(); }
+      // com uma ferramenta de desenho, dois toques rápidos não devem dar zoom
+      if (estado.ferramenta === 'selecao') map.doubleClickZoom.enable(); else map.doubleClickZoom.disable();
       if (window.gsap && !reduzir) gsap.fromTo($dica, { autoAlpha: 0, y: 4 }, { autoAlpha: 1, y: 0, duration: 0.25, ease: 'power3.out' });
     }
     function cancelarSeta() { inicioSeta = null; if (previa) { map.removeLayer(previa); previa = null; } }
@@ -291,6 +303,7 @@
     };
     L.DomEvent.disableClickPropagation($conf);
     el.querySelector('[data-acao="recorte"]').onclick = () => map.flyToBounds(REGIAO, { duration: reduzir ? 0 : 0.8 });
+    el.querySelector('[data-acao="png"]').onclick = () => exportarPNG();
     el.querySelector('[data-acao="tela"]').onclick = () => {
       casca.classList.toggle('tela-cheia');
       document.body.classList.toggle('mapa-tela-cheia', casca.classList.contains('tela-cheia'));
@@ -302,7 +315,7 @@
       const ev = { latlng: ll };
       const f = estado.ferramenta;
       if (f === 'selecao') { selecionar(null); return; }
-      if (!f || f === 'linha') return;
+      if (!f || desenhoLivre(f)) return;
       const { lat, lng } = ll;
       if (['local', 'cidade', 'tenda', 'monte'].includes(f)) { const e = novo({ id: uid(), tipo: f, lat, lng, nome: '' }); escolher(null); selecionar(e.id); editar(e); }
       else if (f === 'texto') { const e = novo({ id: uid(), tipo: 'texto', lat, lng, texto: 'Texto', cor: estado.cor === '#2a1c10' ? '#ffffff' : estado.cor, tam: 'm' }); escolher(null); selecionar(e.id); editar(e); }
@@ -325,12 +338,16 @@
     const cont = map.getContainer();
     function ptDe(ev) { const r = cont.getBoundingClientRect(); return map.containerPointToLatLng([ev.clientX - r.left, ev.clientY - r.top]); }
     function aoDescer(ev) {
-      if (estado.ferramenta !== 'linha' || ev.button > 0) return;
+      if (!desenhoLivre(estado.ferramenta) || ev.button > 0) return;
       if (ev.target.closest('.leaflet-control, .leaflet-popup')) return;
       ev.preventDefault();
       cont.setPointerCapture && cont.setPointerCapture(ev.pointerId);
       const p = ptDe(ev);
-      tracando = { pts: [p], ultimo: [ev.clientX, ev.clientY], layer: L.polyline([p], { color: estado.cor, weight: 4.5, lineCap: 'round', dashArray: '1 11', interactive: false }).addTo(map) };
+      const pincel = estado.ferramenta === 'pincel';
+      const estilo = pincel
+        ? { color: estado.cor, weight: PINCEL.m, opacity: PINCEL_OPAC, lineCap: 'round', lineJoin: 'round', interactive: false }
+        : { color: estado.cor, weight: 4.5, lineCap: 'round', dashArray: '1 11', interactive: false };
+      tracando = { tipo: estado.ferramenta, pts: [p], ultimo: [ev.clientX, ev.clientY], layer: L.polyline([p, p], estilo).addTo(map) };
     }
     function aoMover(ev) {
       if (!tracando) return;
@@ -342,7 +359,12 @@
     function aoSubir() {
       if (!tracando) return;
       map.removeLayer(tracando.layer);
-      if (tracando.pts.length > 1) novo({ id: uid(), tipo: 'linha', cor: estado.cor, pontos: tracando.pts.map(p => [+p.lat.toFixed(5), +p.lng.toFixed(5)]) });
+      const pts = tracando.pts.length > 1 ? tracando.pts : (tracando.tipo === 'pincel' ? [tracando.pts[0], tracando.pts[0]] : null);   // um toque com o pincel faz um ponto
+      if (pts) {
+        const e = { id: uid(), tipo: tracando.tipo, cor: estado.cor, pontos: pts.map(p => [+p.lat.toFixed(5), +p.lng.toFixed(5)]) };
+        if (tracando.tipo === 'pincel') e.tam = 'm';
+        novo(e);
+      }
       tracando = null;
     }
     // Seleção: arrastar uma seta ou linha selecionada muda o desenho de lugar (o mapa não se move junto)
@@ -391,6 +413,130 @@
     document.addEventListener('keydown', aoTecla);
     escolher('selecao');
 
+    // ------------------------------------------------------------ exportar PNG (exatamente o que está na tela)
+    const carregarImg = (src) => new Promise((ok, falha) => { const i = new Image(); i.onload = () => ok(i); i.onerror = falha; i.src = src; });
+    const svgParaImg = (svg, w, hgt) => {
+      const c = svg.cloneNode(true);
+      c.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
+      c.setAttribute('width', w); c.setAttribute('height', hgt);
+      c.removeAttribute('style'); c.classList.remove('selecionado');
+      c.querySelectorAll('.selecionado').forEach(n => n.classList.remove('selecionado'));
+      return carregarImg('data:image/svg+xml;charset=utf-8,' + encodeURIComponent(new XMLSerializer().serializeToString(c)));
+    };
+    function rotaRet(ctx, x, y, w, hgt, r) {
+      ctx.beginPath(); ctx.moveTo(x + r, y); ctx.arcTo(x + w, y, x + w, y + hgt, r); ctx.arcTo(x + w, y + hgt, x, y + hgt, r);
+      ctx.arcTo(x, y + hgt, x, y, r); ctx.arcTo(x, y, x + w, y, r); ctx.closePath();
+    }
+    async function compor(comMapa) {
+      const tam = map.getSize(), escala = Math.max(2, Math.min(3, window.devicePixelRatio || 1));
+      const cv = document.createElement('canvas');
+      cv.width = Math.round(tam.x * escala); cv.height = Math.round(tam.y * escala);
+      const ctx = cv.getContext('2d'); ctx.scale(escala, escala);
+      ctx.fillStyle = '#0f1d2c'; ctx.fillRect(0, 0, tam.x, tam.y);
+      const o = cont.getBoundingClientRect();
+      const rel = (n) => { const r = n.getBoundingClientRect(); return { x: r.left - o.left, y: r.top - o.top, w: r.width, h: r.height }; };
+      if (comMapa) {
+        cont.querySelectorAll('.leaflet-tile-pane .leaflet-layer').forEach(camada => {
+          const op = parseFloat(getComputedStyle(camada).opacity) || 1;
+          camada.querySelectorAll('img.leaflet-tile-loaded').forEach(img => {
+            const r = rel(img); ctx.globalAlpha = op;
+            ctx.drawImage(img, r.x, r.y, r.w, r.h);
+          });
+        });
+        ctx.globalAlpha = 1;
+      }
+      // traços (setas, linhas, pincel)
+      for (const svg of cont.querySelectorAll('.leaflet-overlay-pane svg')) {
+        const r = rel(svg); if (!r.w) continue;
+        const img = await svgParaImg(svg, r.w, r.h);
+        ctx.drawImage(img, r.x, r.y, r.w, r.h);
+      }
+      // marcadores, na ordem das camadas (o X fica por cima)
+      const icones = [...cont.querySelectorAll('.leaflet-marker-pane .leaflet-marker-icon'), ...cont.querySelectorAll('.leaflet-panelX-pane .leaflet-marker-icon')];
+      for (const ic of icones) {
+        const svg = ic.querySelector('svg');
+        if (svg) {
+          const caixa = svg.parentElement === ic ? ic : svg.parentElement;
+          const w = caixa.offsetWidth, hgt = caixa.offsetHeight, r = rel(caixa);
+          const img = await svgParaImg(svg, w, hgt);
+          const giro = (svg.style.transform.match(/rotate\(([-\d.]+)deg\)/) || [])[1];
+          ctx.save();
+          ctx.shadowColor = 'rgba(0,0,0,.45)'; ctx.shadowBlur = 4; ctx.shadowOffsetY = 2;
+          ctx.translate(r.x + r.w / 2, r.y + r.h / 2);
+          if (giro) ctx.rotate(parseFloat(giro) * Math.PI / 180);
+          ctx.drawImage(img, -w / 2, -hgt / 2, w, hgt);
+          ctx.restore();
+        }
+        const nome = ic.querySelector('.mk-nome');
+        if (nome) {
+          const r = rel(nome), cs = getComputedStyle(nome);
+          ctx.save();
+          ctx.shadowColor = 'rgba(0,0,0,.35)'; ctx.shadowBlur = 6; ctx.shadowOffsetY = 2;
+          ctx.fillStyle = cs.backgroundColor; rotaRet(ctx, r.x, r.y, r.w, r.h, 6); ctx.fill();
+          ctx.restore();
+          ctx.font = `${cs.fontWeight} ${cs.fontSize} ${cs.fontFamily}`; ctx.fillStyle = cs.color;
+          ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+          ctx.fillText(nome.textContent, r.x + r.w / 2, r.y + r.h / 2 + 0.5);
+        }
+        const txt = ic.querySelector('.mk-texto-corpo');
+        if (txt) {
+          const r = rel(txt), cs = getComputedStyle(txt);
+          const lh = parseFloat(cs.lineHeight) || parseFloat(cs.fontSize) * 1.2;
+          const linhas = txt.textContent.split('\n');
+          ctx.font = `${cs.fontWeight} ${cs.fontSize} ${cs.fontFamily}`;
+          ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
+          linhas.forEach((l, i) => {
+            const y = r.y + lh * (i + 0.5);
+            ctx.save();
+            ctx.shadowColor = 'rgba(0,0,0,.9)';
+            [[0, 3], [1, 3], [0, 10]].forEach(([dy, blur]) => { ctx.shadowOffsetY = dy; ctx.shadowBlur = blur; ctx.fillStyle = cs.color; ctx.fillText(l, r.x, y); });
+            ctx.restore();
+            ctx.fillStyle = cs.color; ctx.fillText(l, r.x, y);
+          });
+        }
+      }
+      // créditos das imagens (exigidos pelos provedores)
+      const cred = (cont.querySelector('.leaflet-control-attribution') || {}).textContent || '';
+      if (cred) {
+        ctx.font = '500 10px "Source Sans 3", sans-serif'; ctx.textAlign = 'right'; ctx.textBaseline = 'bottom';
+        const w = ctx.measureText(cred).width + 10;
+        ctx.fillStyle = 'rgba(255,255,255,.75)'; ctx.fillRect(tam.x - w, tam.y - 15, w, 15);
+        ctx.fillStyle = '#333'; ctx.fillText(cred, tam.x - 5, tam.y - 2);
+      }
+      return cv;
+    }
+    let exportando = false;
+    async function exportarPNG() {
+      if (exportando) return; exportando = true;
+      const btn = el.querySelector('[data-acao="png"]'); btn.classList.add('ocupado');
+      map.closePopup();
+      marcar('Gerando a imagem…');
+      try {
+        if (document.fonts && document.fonts.ready) await document.fonts.ready;
+        let cv = await compor(true), blob = null, semMapa = false;
+        try { blob = await new Promise((ok, falha) => { try { cv.toBlob(ok, 'image/png'); } catch (e) { falha(e); } }); }
+        catch (e) { semMapa = true; }
+        if (!blob) { semMapa = true; cv = await compor(false); blob = await new Promise(ok => cv.toBlob(ok, 'image/png')); }
+        const nome = (opcoes.nomeArquivo || 'mapa') + '.png';
+        const arq = typeof File === 'function' ? new File([blob], nome, { type: 'image/png' }) : null;
+        const toque = matchMedia('(pointer: coarse)').matches;
+        if (toque && arq && navigator.canShare && navigator.canShare({ files: [arq] })) {
+          try { await navigator.share({ files: [arq], title: nome }); } catch (e) { /* cancelado */ }
+        } else {
+          const url = URL.createObjectURL(blob), a = document.createElement('a');
+          a.href = url; a.download = nome; document.body.appendChild(a); a.click(); a.remove();
+          setTimeout(() => URL.revokeObjectURL(url), 4000);
+        }
+        marcar(semMapa ? 'Imagem salva sem o fundo de satélite (o servidor não liberou)' : 'Imagem salva');
+        setTimeout(() => marcar(''), semMapa ? 4000 : 1600);
+      } catch (e) {
+        marcar('Não foi possível gerar a imagem'); setTimeout(() => marcar(''), 3000);
+      } finally { exportando = false; btn.classList.remove('ocupado'); }
+    }
+
+    // o mapa acompanha o tamanho da área (painel mais alto, tela cheia, girar o celular)
+    const ro = window.ResizeObserver ? new ResizeObserver(() => map.invalidateSize({ pan: false })) : null;
+    if (ro) ro.observe($mapa);
     setTimeout(() => map.invalidateSize(), 50);
     if (window.gsap && !reduzir) gsap.from(el.querySelectorAll('.mapa-ferr'), { autoAlpha: 0, y: 6, duration: 0.3, stagger: 0.025, ease: 'power3.out', clearProps: 'all' });
 
@@ -399,6 +545,7 @@
       destruir() {
         if (timer) { clearTimeout(timer); salvarJa(); }
         document.removeEventListener('keydown', aoTecla);
+        if (ro) ro.disconnect();
         window.removeEventListener('pointermove', aoMoverSelecao);
         window.removeEventListener('pointerup', aoSubirSelecao);
         window.removeEventListener('pointercancel', aoSubirSelecao);

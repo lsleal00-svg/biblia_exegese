@@ -249,6 +249,17 @@
     return m;
   }
 
+  // diferenças de numeração entre a Bíblia Livre, o texto hebraico e a LXX
+  function notaVersificacao(livro, v) {
+    const ab = h(livro.abrev);
+    const lxx = v.lxx_ref ? v.lxx_ref.split('; ').map(r => `${ab} ${h(r)}`).join(' e ') : null;
+    if (v.heb_ref && !lxx) return `<p class="nota-vers">No texto hebraico e na LXX este versículo é ${ab} ${h(v.heb_ref)}.</p>`;
+    if (v.heb_ref && lxx) return `<p class="nota-vers">No texto hebraico este versículo é ${ab} ${h(v.heb_ref)}; na LXX (Rahlfs), ${lxx}.</p>`;
+    if (lxx) return `<p class="nota-vers">A LXX (Rahlfs) põe este trecho em outra ordem: aqui aparece ${lxx}.</p>`;
+    if (!v.gr || !v.gr.length) return `<p class="nota-vers">A LXX (Rahlfs) não traz este versículo.</p>`;
+    return '';
+  }
+
   // ------------------------------------------------------------------ cabeçalho
   function cabecalho(extra = '') {
     const nome = S.user.user_metadata && (S.user.user_metadata.user_name || S.user.user_metadata.full_name) || S.user.email || '';
@@ -271,10 +282,12 @@
   // ------------------------------------------------------------------ estante
   function telaEstante() {
     const blocoLivro = (l, cor) => `
-      <button class="livro ${cor} ${l.ativo ? '' : 'inativo'}" data-livro="${h(l.arquivo || '')}" ${l.ativo ? '' : 'aria-disabled="true"'} title="${h(l.nome)}${l.ativo ? '' : ' — em breve'}">
-        <span class="livro-capa"><span class="livro-abrev">${h(l.abrev)}</span></span>
-        <span class="livro-paginas"></span>
-        ${l.ativo ? '' : `<span class="livro-cadeado">${I.lock}</span>`}
+      <button class="livro cor-${cor} ${l.ativo ? '' : 'inativo'}" data-livro="${h(l.arquivo || '')}" ${l.ativo ? '' : 'aria-disabled="true"'} title="${h(l.nome)}${l.ativo ? '' : ' — em breve'}">
+        <span class="livro-obj" aria-hidden="true">
+          <span class="livro-folhas"></span>
+          <span class="livro-capa"><span class="livro-moldura"><span class="livro-abrev${l.abrev.length > 2 ? ' longo' : ''}">${h(l.abrev)}</span><span class="livro-orn"></span></span></span>
+          ${l.ativo ? '<span class="livro-fita"></span>' : `<span class="livro-cadeado">${I.lock}</span>`}
+        </span>
         <span class="livro-nome">${h(l.nome)}</span>
         <span class="livro-heb" lang="he" dir="rtl">${h(l.heb)}</span>
       </button>`;
@@ -282,7 +295,7 @@
     <main class="estante">
       <section class="estante-intro">
         <h1>Antigo Testamento</h1>
-        <p>Na ordem da Bíblia Hebraica — Torá, Profetas e Escritos. Nesta etapa, <strong>Gênesis</strong> está disponível; os demais livros do Pentateuco vêm a seguir.</p>
+        <p>Na ordem da Bíblia Hebraica — Torá, Profetas e Escritos. Nesta etapa, todo o <strong>Pentateuco</strong> está disponível; os demais livros vêm a seguir.</p>
       </section>
       ${CANON.map(d => `
         <section class="divisao ${d.cor}">
@@ -292,7 +305,7 @@
           </header>
           ${d.grupos.map(g => `
             ${g.titulo ? `<h3 class="grupo-titulo">${h(g.titulo)}</h3>` : ''}
-            <div class="prateleira">${g.livros.map(l => blocoLivro(l, d.cor)).join('')}</div>
+            <div class="prateleira">${g.livros.map(l => blocoLivro(l, g.cor || d.cor)).join('')}</div>
           `).join('')}
         </section>`).join('')}
     </main>`;
@@ -368,7 +381,7 @@
         <div class="verso-originais ${S.mostrarOriginais ? '' : 'oculto'}">
           <p class="verso-he" lang="he" dir="rtl">${h(hebVerso)}</p>
           <p class="verso-gr" lang="grc">${h(grVerso)} <span class="sigla">LXX</span></p>
-          ${v.heb_ref ? `<p class="nota-vers">No texto hebraico e na LXX este versículo é ${h(livro.abrev)} ${h(v.heb_ref)}.</p>` : ''}
+          ${notaVersificacao(livro, v)}
         </div>
         <button class="link pequeno" data-acao="originais">${S.mostrarOriginais ? 'Ocultar' : 'Mostrar'} hebraico e grego do versículo</button>
       </section>
@@ -927,6 +940,7 @@
     const ref = refAtual();
     mapaAtual = MapaExegese.montar(el, {
       vista: S.mapa && S.mapa.vista, elementos: (S.mapa && S.mapa.elementos) || [],
+      nomeArquivo: `mapa-${ref.livro}-${ref.capitulo}-${ref.versiculo}`.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase(),
       salvar: async ({ vista, elementos }) => {
         S.mapa = await D.gravar('mapas', { ...ref, vista, elementos }, ['livro', 'capitulo', 'versiculo']);
       }

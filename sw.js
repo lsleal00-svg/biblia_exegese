@@ -1,6 +1,6 @@
 /* Service worker: permite instalar o app e abre mais rápido.
    Páginas, scripts e estilos: rede primeiro (as atualizações chegam logo); dados do livro, imagens e bibliotecas: cache primeiro. */
-const VERSAO = 'exegese-v5';
+const VERSAO = 'exegese-v6';
 const BASICO = ['./', 'index.html', 'css/app.css', 'js/config.js', 'js/livros.js', 'js/dados.js', 'js/mapa.js', 'js/instalar.js', 'js/app.js',
   'vendor/leaflet/leaflet.css', 'vendor/leaflet/leaflet.js', 'vendor/gsap.min.js', 'img/logo-64.png', 'img/logo-192.png', 'manifest.webmanifest'];
 

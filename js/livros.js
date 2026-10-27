@@ -3,18 +3,18 @@
 window.CANON = [
   {
     id: 'tora', nome: 'Torá', hebraico: 'תּוֹרָה', subtitulo: 'A Lei · Pentateuco', cor: 'tora',
-    grupos: [{ livros: [
+    grupos: [{ cor: 'tora', livros: [
       { abrev: 'Gn', nome: 'Gênesis', heb: 'בְּרֵאשִׁית', arquivo: 'gn', ativo: true },
-      { abrev: 'Êx', nome: 'Êxodo', heb: 'שְׁמוֹת' },
-      { abrev: 'Lv', nome: 'Levítico', heb: 'וַיִּקְרָא' },
-      { abrev: 'Nm', nome: 'Números', heb: 'בְּמִדְבַּר' },
-      { abrev: 'Dt', nome: 'Deuteronômio', heb: 'דְּבָרִים' }
+      { abrev: 'Êx', nome: 'Êxodo', heb: 'שְׁמוֹת', arquivo: 'ex', ativo: true },
+      { abrev: 'Lv', nome: 'Levítico', heb: 'וַיִּקְרָא', arquivo: 'lv', ativo: true },
+      { abrev: 'Nm', nome: 'Números', heb: 'בְּמִדְבַּר', arquivo: 'nm', ativo: true },
+      { abrev: 'Dt', nome: 'Deuteronômio', heb: 'דְּבָרִים', arquivo: 'dt', ativo: true }
     ]}]
   },
   {
     id: 'neviim', nome: 'Nevi’im', hebraico: 'נְבִיאִים', subtitulo: 'Os Profetas', cor: 'neviim',
     grupos: [
-      { titulo: 'Profetas Anteriores', livros: [
+      { titulo: 'Profetas Anteriores', cor: 'anteriores', livros: [
         { abrev: 'Js', nome: 'Josué', heb: 'יְהוֹשֻׁעַ' },
         { abrev: 'Jz', nome: 'Juízes', heb: 'שׁוֹפְטִים' },
         { abrev: '1Sm', nome: '1 Samuel', heb: 'שְׁמוּאֵל א' },
@@ -22,12 +22,12 @@ window.CANON = [
         { abrev: '1Rs', nome: '1 Reis', heb: 'מְלָכִים א' },
         { abrev: '2Rs', nome: '2 Reis', heb: 'מְלָכִים ב' }
       ]},
-      { titulo: 'Profetas Posteriores', livros: [
+      { titulo: 'Profetas Posteriores', cor: 'posteriores', livros: [
         { abrev: 'Is', nome: 'Isaías', heb: 'יְשַׁעְיָהוּ' },
         { abrev: 'Jr', nome: 'Jeremias', heb: 'יִרְמְיָהוּ' },
         { abrev: 'Ez', nome: 'Ezequiel', heb: 'יְחֶזְקֵאל' }
       ]},
-      { titulo: 'Os Doze', livros: [
+      { titulo: 'Os Doze', cor: 'doze', livros: [
         { abrev: 'Os', nome: 'Oseias', heb: 'הוֹשֵׁעַ' },
         { abrev: 'Jl', nome: 'Joel', heb: 'יוֹאֵל' },
         { abrev: 'Am', nome: 'Amós', heb: 'עָמוֹס' },
@@ -46,19 +46,19 @@ window.CANON = [
   {
     id: 'ketuvim', nome: 'Ketuvim', hebraico: 'כְּתוּבִים', subtitulo: 'Os Escritos', cor: 'ketuvim',
     grupos: [
-      { titulo: 'Livros poéticos', livros: [
+      { titulo: 'Livros poéticos', cor: 'poeticos', livros: [
         { abrev: 'Sl', nome: 'Salmos', heb: 'תְּהִלִּים' },
         { abrev: 'Pv', nome: 'Provérbios', heb: 'מִשְׁלֵי' },
         { abrev: 'Jó', nome: 'Jó', heb: 'אִיּוֹב' }
       ]},
-      { titulo: 'Cinco Rolos (Megillot)', livros: [
+      { titulo: 'Cinco Rolos (Megillot)', cor: 'megillot', livros: [
         { abrev: 'Ct', nome: 'Cântico dos Cânticos', heb: 'שִׁיר הַשִּׁירִים' },
         { abrev: 'Rt', nome: 'Rute', heb: 'רוּת' },
         { abrev: 'Lm', nome: 'Lamentações', heb: 'אֵיכָה' },
         { abrev: 'Ec', nome: 'Eclesiastes', heb: 'קֹהֶלֶת' },
         { abrev: 'Et', nome: 'Ester', heb: 'אֶסְתֵּר' }
       ]},
-      { titulo: 'Demais Escritos', livros: [
+      { titulo: 'Demais Escritos', cor: 'escritos', livros: [
         { abrev: 'Dn', nome: 'Daniel', heb: 'דָּנִיֵּאל' },
         { abrev: 'Ed', nome: 'Esdras', heb: 'עֶזְרָא' },
         { abrev: 'Ne', nome: 'Neemias', heb: 'נְחֶמְיָה' },
