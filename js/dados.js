@@ -1,6 +1,6 @@
 // Camada de dados: Supabase (padrão) ou modo demonstração (?demo=1, só no navegador).
 (function () {
-  const TABELAS = ['traducoes_usuario', 'celulas', 'lexico_usuario', 'obras', 'citacoes', 'blocos'];
+  const TABELAS = ['traducoes_usuario', 'celulas', 'lexico_usuario', 'obras', 'citacoes', 'blocos', 'mapas', 'preferencias'];
   const uuid = () => (crypto.randomUUID ? crypto.randomUUID() :
     'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, c => {
       const r = Math.random() * 16 | 0; return (c === 'x' ? r : (r & 0x3 | 0x8)).toString(16);

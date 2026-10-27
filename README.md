@@ -17,13 +17,15 @@ Aplicativo web de estudo exegético do Antigo Testamento. Interface no **GitHub 
 - Colunas compactas para celular. Há barra de rolagem horizontal também no topo da tabela, e as duas linhas de cabeçalho ficam congeladas.
 - Todas as colunas têm a mesma largura. Texto longo aparece com reticências e abre completo quando você toca nele.
 - Citações: na primeira vez, o app pede a obra e a referência completa. Depois disso, a mesma obra só pede **tipo (direta/indireta)** e **página**, e a página entra no fim da referência automaticamente.
-- Seção inferior: **Espírito de Profecia**, **Contexto Histórico** (bloco "Ano" já vem pronto, e você pode criar blocos de Rei, Cidade, Região, Tribo, Profetas ou um título seu, além das citações teóricas), **Mapa** (próxima etapa) e **Aplicação** (seus comentários homiléticos). Cada item tem botões de editar, excluir e copiar.
+- Seção inferior: **Espírito de Profecia**, **Contexto Histórico** (bloco "Ano" já vem pronto, e você pode criar blocos de Rei, Cidade, Região, Tribo, Profetas ou um título seu, além das citações teóricas), **Mapa** e **Aplicação** (seus comentários homiléticos). Cada item tem botões de editar, excluir e copiar.
+- **Mapa** do recorte Egito–Mesopotâmia em satélite de alta definição. O zoom e a posição ficam salvos em cada versículo. A aba **Elementos** tem localização com nome, texto com cor e tamanho, X (sempre por cima), cidade fortificada com nome, acampamento com nome, seta reta, seta pontilhada e linha pontilhada livre, todos com cor. Tudo fica salvo no versículo.
+- Lápis em cada palavra da coluna Texto Bíblico e no título dela, que pode ser renomeado. O olho nas colunas Hebraico, Strong Hebraico, LXX e Strong Grego recolhe a coluna numa faixa estreita; tocando nela, a coluna volta.
 - Modo demonstração sem login: `.../?demo=1`. Os dados ficam só no navegador.
 
 ## Como publicar
 
 ### 1. Supabase
-1. Abra **SQL Editor → New query**, cole o conteúdo de `supabase/schema.sql` e clique em **Run**.
+1. Abra **SQL Editor → New query**, cole o conteúdo de `supabase/schema.sql` e clique em **Run**. Rode de novo a cada versão nova: o script só cria o que falta e não apaga dados. A v4 criou as tabelas `mapas` e `preferencias`.
 2. Em **Authentication → URL Configuration**, coloque em **Site URL** o endereço do seu GitHub Pages (ex.: `https://SEU-USUARIO.github.io/biblia-exegese/`) e adicione esse mesmo endereço em **Redirect URLs**.
 3. Para entrar com GitHub:
    - No GitHub: **Settings → Developer settings → OAuth Apps → New OAuth App**.
@@ -40,6 +42,7 @@ Aplicativo web de estudo exegético do Antigo Testamento. Interface no **GitHub 
 - Hebraico: Westminster Leningrad Codex (domínio público). Lemas e morfologia da OSHB (CC BY 4.0).
 - Septuaginta: Rahlfs 1935, projeto CenterBLC/LXX (MIT).
 - Léxico Strong (1890), hebraico e grego: domínio público.
+- Mapa: Leaflet 1.9.4 (BSD) e GSAP 3.12.5 em `vendor/`. Imagens © Esri, Maxar, Earthstar Geographics, e NASA Blue Marble (domínio público).
 
 ## Para gerar os próximos livros
 O arquivo `tools/build_data.py` (requer `text-fabric`, `spacy` e o modelo `pt_core_news_sm`) gera `data/livros/<abrev>.json`. Exemplo para Êxodo: `python3 tools/build_data.py <fontes> data/livros Exod`.

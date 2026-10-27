@@ -35,6 +35,9 @@
     x: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg>',
     out: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 4h4v16h-4M10 8l-4 4 4 4M6 12h10"/></svg>',
     info: '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 11v6M12 7.5v.5"/></svg>',
+    pencil: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15.5 4.5l4 4L8 20H4v-4z"/><path d="M13.5 6.5l4 4"/></svg>',
+    eye: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg>',
+    eyeOff: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 3l18 18M10.6 5.1A10.4 10.4 0 0 1 12 5c6.4 0 10 7 10 7a17 17 0 0 1-3.2 4.1M6.6 6.6C3.9 8.4 2 12 2 12s3.6 7 10 7c1.8 0 3.4-.5 4.8-1.3"/><path d="M9.9 9.9a3 3 0 0 0 4.2 4.2"/></svg>',
     lock: '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg>',
     gh: '<svg viewBox="0 0 24 24" aria-hidden="true" class="fill"><path d="M12 2a10 10 0 0 0-3.2 19.5c.5.1.7-.2.7-.5v-1.7c-2.8.6-3.4-1.3-3.4-1.3-.5-1.2-1.1-1.5-1.1-1.5-.9-.6.1-.6.1-.6 1 .1 1.5 1 1.5 1 .9 1.6 2.4 1.1 3 .9.1-.7.4-1.1.6-1.4-2.2-.3-4.6-1.1-4.6-5 0-1.1.4-2 1-2.7-.1-.3-.4-1.3.1-2.7 0 0 .8-.3 2.8 1a9.6 9.6 0 0 1 5 0c1.9-1.3 2.8-1 2.8-1 .5 1.4.2 2.4.1 2.7.6.7 1 1.6 1 2.7 0 3.9-2.3 4.7-4.6 5 .4.3.7.9.7 1.9v2.8c0 .3.2.6.7.5A10 10 0 0 0 12 2z"/></svg>'
   };
@@ -48,7 +51,16 @@
       <div class="modal-corpo">${corpo}</div>
       ${botoes.length ? `<div class="modal-rodape">${botoes.map((b, i) => `<button class="btn ${b.classe || ''}" data-b="${i}">${h(b.texto)}</button>`).join('')}</div>` : ''}
     </div>`;
-    const fechar = () => { wrap.remove(); document.removeEventListener('keydown', esc); };
+    const reduz = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
+    let fechando = false;
+    const fechar = () => {
+      if (fechando) return; fechando = true;
+      document.removeEventListener('keydown', esc);
+      if (window.gsap && !reduz) {
+        gsap.to(wrap.querySelector('.modal'), { autoAlpha: 0, y: 8, scale: 0.98, duration: 0.16, ease: 'power2.in' });
+        gsap.to(wrap, { autoAlpha: 0, duration: 0.18, onComplete: () => wrap.remove() });
+      } else wrap.remove();
+    };
     const esc = (e) => { if (e.key === 'Escape') fechar(); };
     document.addEventListener('keydown', esc);
     wrap.addEventListener('click', async (e) => {
@@ -64,6 +76,10 @@
       }
     });
     $modais.appendChild(wrap);
+    if (window.gsap && !reduz) {
+      gsap.fromTo(wrap, { autoAlpha: 0 }, { autoAlpha: 1, duration: 0.2, ease: 'power2.out' });
+      gsap.fromTo(wrap.querySelector('.modal'), { autoAlpha: 0, y: 14, scale: 0.97 }, { autoAlpha: 1, y: 0, scale: 1, duration: 0.32, ease: 'expo.out', clearProps: 'transform' });
+    }
     if (aoAbrir) aoAbrir(wrap);
     const f = wrap.querySelector('[autofocus]'); if (f) setTimeout(() => f.focus(), 30);
     return { el: wrap, fechar };
@@ -84,7 +100,8 @@
     livros: {},           // dados carregados (gn.json)
     traducoes: [], obras: [],
     celulas: new Map(),   // 'coluna|linha' -> linha
-    citacoes: [], blocos: [],
+    citacoes: [], blocos: [], mapa: null,
+    pref: { tituloTexto: 'Texto Bíblico', recolhidas: [] },
     aba: store.get('aba') || 'ep',
     mostrarOriginais: store.get('originais') !== '0'
   };
@@ -138,6 +155,10 @@
         D.listar('obras', {}, 'ordem')
       ]);
       S.traducoes = t; S.obras = o;
+      try {
+        const pr = await D.listar('preferencias', {}, null);
+        if (pr[0] && pr[0].dados) S.pref = { ...S.pref, ...pr[0].dados };
+      } catch (e) { /* tabela ainda não criada: usa o padrão */ }
     } catch (e) {
       toast('Erro ao ler seus dados: ' + e.message + ' — confira se o schema.sql foi executado no Supabase.', true);
     }
@@ -158,10 +179,17 @@
     ]);
     S.celulas = new Map(cel.map(c => [c.coluna + '|' + c.linha, c]));
     S.citacoes = cit; S.blocos = blo;
+    try { const m = await D.listar('mapas', f, null); S.mapa = m[0] || null; }
+    catch (e) { S.mapa = null; }
+  }
+  async function salvarPref() {
+    try { await D.gravar('preferencias', { dados: S.pref }, []); }
+    catch (e) { toast('Não foi possível salvar a preferência: ' + e.message, true); }
   }
 
   // ------------------------------------------------------------------ render geral
   async function render() {
+    desmontarMapa();
     if (!S.user) return telaLogin();
     const r = rotaAtual();
     if (!r.livro) return telaEstante();
@@ -320,6 +348,7 @@
   }
 
   function desenharExegese() {
+    desmontarMapa();
     const { livro, cap, ver, v } = ctx;
     const ant = vizinho(-1), prox = vizinho(1);
     const hebVerso = v.he.map(r => r[0]).join(' ');
@@ -352,19 +381,24 @@
       S.mostrarOriginais = !S.mostrarOriginais; store.set('originais', S.mostrarOriginais ? '1' : '0'); desenharExegese();
     };
     ligarTabela(); ligarInferior();
+    if (S.aba === 'mapa') montarMapa();
   }
 
   // ---------------------------------------------- colunas
   const obrasCat = (cat) => S.obras.filter(o => o.categoria === cat);
   function colunas() {
-    const W = { texto: 96, he: 106, oc: 46, strong: 104, lxx: 104, obra: 102, vazio: 106 };
-    const c = [{ k: 'pt', tipo: 'pt', titulo: 'Texto Bíblico', cor: 'amarelo', g: 'info', w: W.texto }];
+    const W = { texto: 100, he: 108, oc: 46, strong: 106, lxx: 106, obra: 104, vazio: 108, recolhida: 34 };
+    const c = [{ k: 'pt', tipo: 'pt', titulo: S.pref.tituloTexto || 'Texto Bíblico', cor: 'amarelo', g: 'info', w: W.texto }];
     S.traducoes.forEach(t => c.push({ k: 'trad:' + t.id, tipo: 'trad', trad: t, titulo: t.nome, cor: 'amarelo2', g: 'info', w: W.texto }));
-    c.push({ k: 'he', tipo: 'he', titulo: 'Hebraico', cor: 'verde', g: 'info', w: W.he });
-    c.push({ k: 'oc', tipo: 'oc', titulo: '', cor: 'verde', g: 'info', w: W.oc });
-    c.push({ k: 'she', tipo: 'she', titulo: 'Strong Hebraico', cor: 'azul', g: 'info', w: W.strong });
-    c.push({ k: 'lxx', tipo: 'lxx', titulo: 'LXX', cor: 'vermelho', g: 'info', w: W.lxx });
-    c.push({ k: 'sgr', tipo: 'sgr', titulo: 'Strong Grego', cor: 'azul', g: 'info', w: W.strong });
+    const rec = (k) => (S.pref.recolhidas || []).includes(k);
+    const add = (k, tipo, titulo, cor, w) => c.push(rec(k)
+      ? { k, tipo: 'recolhida', alvo: tipo, titulo, cor, g: 'info', w: W.recolhida }
+      : { k, tipo, titulo, cor, g: 'info', w, recolhivel: true });
+    add('he', 'he', 'Hebraico', 'verde', W.he);
+    if (!rec('he')) c.push({ k: 'oc', tipo: 'oc', titulo: '', cor: 'verde', g: 'info', w: W.oc });
+    add('she', 'she', 'Strong Hebraico', 'azul', W.strong);
+    add('lxx', 'lxx', 'LXX', 'vermelho', W.lxx);
+    add('sgr', 'sgr', 'Strong Grego', 'azul2', W.strong);
     const dic = obrasCat('dicionario'), com = obrasCat('comentario');
     if (dic.length) dic.forEach(o => c.push({ k: 'obra:' + o.id, tipo: 'obra', obra: o, titulo: o.titulo, cor: 'rosa', g: 'dic', w: W.obra }));
     else c.push({ k: 'vazio-dic', tipo: 'vazio', cat: 'dicionario', titulo: '', cor: 'rosa', g: 'dic', w: W.vazio });
@@ -392,7 +426,7 @@
   function tabelaHTML() {
     const cols = colunas();
     const conta = (g) => cols.filter(c => c.g === g).length;
-    let html = '<colgroup>' + cols.map(c => `<col style="width:${c.w}px">`).join('') + '</colgroup><thead>';
+    let html = '<colgroup>' + cols.map(c => `<col data-k="${h(c.k)}" style="width:${c.w}px">`).join('') + '</colgroup><thead>';
     html += `<tr class="grupos">
       <th colspan="${conta('info')}" class="g-info">Informações gerais</th>
       <th colspan="${conta('dic')}" class="g-dic">Dicionários <button class="mais" data-acao="nova-obra" data-cat="dicionario" title="Cadastrar dicionário ou léxico" aria-label="Cadastrar dicionário">${I.plus}</button></th>
@@ -401,12 +435,15 @@
     cols.forEach(c => {
       if (c.tipo === 'oc') return;
       const span = c.tipo === 'he' ? ' colspan="2"' : '';
+      // (quando o hebraico está recolhido, a coluna de ocorrências some junto)
       let inner = h(c.titulo);
-      if (c.tipo === 'pt') inner = `<span>Texto Bíblico</span><button class="mais" data-acao="nova-trad" title="Adicionar uma tradução" aria-label="Adicionar tradução">${I.plus}</button>`;
+      if (c.recolhivel) inner = `<span class="th-titulo">${h(c.titulo)}</span><button class="olho" data-acao="recolher" data-k="${c.k}" title="Ocultar coluna" aria-label="Ocultar a coluna ${h(c.titulo)}">${I.eye}</button>`;
+      if (c.tipo === 'recolhida') inner = `<button class="olho reabrir" data-acao="reabrir" data-k="${c.k}" title="Mostrar ${h(c.titulo)}" aria-label="Mostrar a coluna ${h(c.titulo)}">${I.eyeOff}<span class="th-vertical">${h(c.titulo)}</span></button>`;
+      if (c.tipo === 'pt') inner = `<button class="lapis-th" data-acao="renomear-pt" title="Renomear coluna" aria-label="Renomear a coluna">${I.pencil}</button><span class="th-titulo">${h(c.titulo)}</span><button class="mais" data-acao="nova-trad" title="Adicionar uma tradução" aria-label="Adicionar tradução">${I.plus}</button>`;
       if (c.tipo === 'trad') inner = `<button class="th-btn" data-acao="editar-trad" data-id="${h(c.trad.id)}" title="Renomear ou excluir">${h(c.titulo)}</button>`;
       if (c.tipo === 'obra') inner = `<button class="th-btn" data-acao="editar-obra" data-id="${h(c.obra.id)}" title="${h(c.obra.referencia)}">${h(c.titulo)}</button>`;
       if (c.tipo === 'vazio') inner = `<button class="th-vazio" data-acao="nova-obra" data-cat="${c.cat}">${I.plus} ${c.cat === 'dicionario' ? 'Dicionário' : 'Comentário'}</button>`;
-      html += `<th class="c-${c.cor}"${span}>${inner}</th>`;
+      html += `<th class="c-${c.cor}${c.tipo === 'recolhida' ? ' th-recolhida' : ''}" data-k="${h(c.k)}"${span}>${inner}</th>`;
     });
     html += '</tr></thead><tbody>';
     ctx.v.he.forEach((r, i) => {
@@ -424,8 +461,11 @@
     switch (c.tipo) {
       case 'pt': {
         const t = cel('pt', i) || r[8];
-        return td('cel-texto', ln(t ? h(t) : '<span class="vazio">—</span>'));
+        return td('cel-texto cel-pt', `<button class="lapis" data-acao="editar-pt" data-linha="${i}" title="Editar" aria-label="Editar a palavra da linha ${i + 1}">${I.pencil}</button>` +
+          ln(t ? h(t) : '<span class="vazio">—</span>'));
       }
+      case 'recolhida':
+        return `<td class="cel-recolhida c-${c.cor}" data-acao-td="reabrir" data-k="${h(c.k)}" aria-hidden="true"></td>`;
       case 'trad': {
         const t = cel(c.k, i);
         return td('cel-texto', ln(t ? h(t) : '<span class="vazio">—</span>'));
@@ -498,6 +538,34 @@
     if (t) t.innerHTML = tabelaHTML();
     ajustarRolagem();
   }
+  function alternarColuna(k, recolher) {
+    const t = document.getElementById('tabela');
+    const antes = {};
+    t.querySelectorAll('col[data-k]').forEach(c => { antes[c.dataset.k] = c.getBoundingClientRect().width; });
+    const lista = new Set(S.pref.recolhidas || []);
+    if (recolher) lista.add(k); else lista.delete(k);
+    S.pref.recolhidas = [...lista];
+    atualizarTabela();
+    salvarPref();
+    const reduz = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
+    if (!window.gsap || reduz) return;
+    const col = t.querySelector(`col[data-k="${k}"]`);
+    if (col && antes[k]) gsap.fromTo(col, { width: antes[k] }, { width: col.style.width, duration: 0.34, ease: 'power3.out', onComplete: ajustarRolagem });
+    if (!recolher) gsap.from(t.querySelectorAll(`td[data-col="${k}"], th[data-k="${k}"]`), { autoAlpha: 0, x: -6, duration: 0.3, ease: 'power3.out', stagger: 0.012, clearProps: 'all' });
+  }
+  function modalTituloTexto() {
+    modal({
+      titulo: 'Título da coluna',
+      corpo: `<label class="campo">Título<input id="m-tit" value="${h(S.pref.tituloTexto || 'Texto Bíblico')}" maxlength="40" autofocus></label>
+        <p class="dica">Ex.: Bíblia Livre, Tradução literal, Minha tradução.</p>`,
+      botoes: [{ texto: 'Restaurar padrão', classe: 'sec esq', acao: async () => { S.pref.tituloTexto = 'Texto Bíblico'; atualizarTabela(); await salvarPref(); } },
+        { texto: 'Cancelar', classe: 'sec' },
+        { texto: 'Salvar', acao: async (el) => {
+          const v = valor(el, '#m-tit'); if (!v) { toast('Escreva um título.', true); return false; }
+          S.pref.tituloTexto = v; atualizarTabela(); await salvarPref();
+        } }]
+    });
+  }
   function aoClicarTabela(e) {
     const b = e.target.closest('[data-acao]');
     if (b) {
@@ -506,8 +574,13 @@
       if (a === 'editar-trad') return modalTraducao(S.traducoes.find(x => x.id === b.dataset.id));
       if (a === 'nova-obra') return modalObraColuna(b.dataset.cat);
       if (a === 'editar-obra') return modalObraColuna(null, obraPorId(b.dataset.id));
+      if (a === 'editar-pt') return modalTextoCelula('pt', +b.dataset.linha);
+      if (a === 'renomear-pt') return modalTituloTexto();
+      if (a === 'recolher' || a === 'reabrir') return alternarColuna(b.dataset.k, a === 'recolher');
       return;
     }
+    const tr = e.target.closest('td[data-acao-td="reabrir"]');
+    if (tr) return alternarColuna(tr.dataset.k, false);
     const td = e.target.closest('td[data-col]');
     if (!td) return;
     const col = td.dataset.col, i = +td.dataset.linha;
@@ -530,7 +603,7 @@
   function modalTextoCelula(col, i) {
     const r = ctx.v.he[i];
     const ehPt = col === 'pt';
-    const nomeCol = ehPt ? 'Texto Bíblico' : (S.traducoes.find(t => 'trad:' + t.id === col) || {}).nome;
+    const nomeCol = ehPt ? (S.pref.tituloTexto || 'Texto Bíblico') : (S.traducoes.find(t => 'trad:' + t.id === col) || {}).nome;
     const proprio = cel(col, i);
     const atual = proprio || (ehPt ? r[8] : '');
     modal({
@@ -829,7 +902,7 @@
         <div class="lista-cit">${cs.map(cartaoCitacao).join('') || '<p class="vazio">Nenhuma citação de contexto histórico.</p>'}</div>
         <button class="btn add" data-acao="nova-cit" data-secao="contexto">${I.plus} Adicionar citação teórica</button>`;
     } else if (S.aba === 'mapa') {
-      corpo = `<div class="em-breve"><p><b>Mapa</b></p><p>Esta área será configurada na próxima etapa.</p></div>`;
+      corpo = `<div class="mapa-wrap" id="mapa-wrap"></div>`;
     } else {
       const bs = S.blocos.filter(b => b.secao === 'aplicacao');
       corpo = `<div class="lista-cit">${bs.map(b => `<article class="cartao" data-bloco="${h(b.id)}">
@@ -843,12 +916,31 @@
     return `<nav class="abas" role="tablist">${ABAS.map(a => `<button role="tab" aria-selected="${S.aba === a.id}" class="${S.aba === a.id ? 'ativa' : ''}" data-aba="${a.id}">${a.titulo}</button>`).join('')}</nav>
       <div class="aba-corpo">${corpo}</div>`;
   }
-  function atualizarInferior() { const el = document.getElementById('inferior'); if (el) el.innerHTML = inferiorHTML(); }
+  let mapaAtual = null;
+  function desmontarMapa() { if (mapaAtual) { try { mapaAtual.destruir(); } catch (e) { /* já removido */ } mapaAtual = null; } }
+  function montarMapa() {
+    const el = document.getElementById('mapa-wrap');
+    if (!el || !window.MapaExegese) return;
+    const ref = refAtual();
+    mapaAtual = MapaExegese.montar(el, {
+      vista: S.mapa && S.mapa.vista, elementos: (S.mapa && S.mapa.elementos) || [],
+      salvar: async ({ vista, elementos }) => {
+        S.mapa = await D.gravar('mapas', { ...ref, vista, elementos }, ['livro', 'capitulo', 'versiculo']);
+      }
+    });
+  }
+  function atualizarInferior() {
+    desmontarMapa();
+    const el = document.getElementById('inferior'); if (!el) return;
+    el.innerHTML = inferiorHTML();
+    if (S.aba === 'mapa') montarMapa();
+  }
 
   function ligarInferior() {
     document.getElementById('inferior').addEventListener('click', async (e) => {
       const aba = e.target.closest('[data-aba]');
-      if (aba) { S.aba = aba.dataset.aba; store.set('aba', S.aba); return atualizarInferior(); }
+      if (aba) { if (S.aba === aba.dataset.aba) return; S.aba = aba.dataset.aba; store.set('aba', S.aba); return atualizarInferior(); }
+      if (e.target.closest('#mapa-wrap')) return;
       const b = e.target.closest('[data-acao]'); if (!b) return;
       const a = b.dataset.acao;
       if (a === 'nova-cit') {
@@ -918,6 +1010,8 @@
         <p><b>Strong’s Exhaustive Concordance</b> (1890), hebraico e grego, em domínio público (Open Scriptures). As traduções possíveis de cada termo são os significados do Strong vertidos para o português, somados às traduções mais frequentes da Bíblia Livre. O verbete original, em inglês, aparece na janela de detalhes.</p>
         <h3>Correspondência com o português</h3>
         <p>A palavra portuguesa de cada linha da coluna “Texto Bíblico” foi distribuída por alinhamento estatístico entre o texto hebraico e a Bíblia Livre em todo o Antigo Testamento. Toda palavra do versículo aparece em alguma linha; a correspondência de cada linha pode ser corrigida.</p>
+        <h3>Mapa</h3>
+        <p>Imagens de satélite © Esri, Maxar e Earthstar Geographics (camada “Satélite”), e NASA Blue Marble, de domínio público (camada “Relevo”). Mapa feito com Leaflet (licença BSD).</p>
         <h3>Contagens</h3>
         <p>Ocorrências contadas por lema (número Strong) no livro e em todo o Antigo Testamento hebraico.</p>
       </div>`,
