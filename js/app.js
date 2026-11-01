@@ -101,7 +101,7 @@
     livros: {},           // dados carregados (gn.json)
     traducoes: [], obras: [],
     celulas: new Map(),   // 'coluna|linha' -> linha
-    citacoes: [], blocos: [], mapa: null,
+    citacoes: [], blocos: [], mapa: null, fotos: [],
     pref: { tituloTexto: 'Texto Bíblico', recolhidas: [] },
     aba: store.get('aba') || 'ep',
     mostrarOriginais: store.get('originais') !== '0'
@@ -182,6 +182,8 @@
     S.citacoes = cit; S.blocos = blo;
     try { const m = await D.listar('mapas', f, null); S.mapa = m[0] || null; }
     catch (e) { S.mapa = null; }
+    try { S.fotos = await D.listar('fotos', f, 'ordem'); }
+    catch (e) { S.fotos = []; }
   }
   async function salvarPref() {
     try { await D.gravar('preferencias', { dados: S.pref }, []); }
@@ -398,12 +400,13 @@
     };
     ligarTabela(); ligarInferior();
     if (S.aba === 'mapa') montarMapa();
+    if (S.aba === 'fotos') preencherFotos();
   }
 
   // ---------------------------------------------- colunas
   const obrasCat = (cat) => S.obras.filter(o => o.categoria === cat);
   function colunas() {
-    const W = { texto: 100, he: 108, oc: 46, strong: 106, lxx: 106, obra: 104, vazio: 108, recolhida: 34 };
+    const W = { texto: 100, he: 108, oc: 46, strong: 106, lxx: 106, obra: 104, vazio: 108, recolhida: 34, conc: 120 };
     const c = [{ k: 'pt', tipo: 'pt', titulo: S.pref.tituloTexto || 'Texto Bíblico', cor: 'amarelo', g: 'info', w: W.texto }];
     S.traducoes.forEach(t => c.push({ k: 'trad:' + t.id, tipo: 'trad', trad: t, titulo: t.nome, cor: 'amarelo2', g: 'info', w: W.texto }));
     const rec = (k) => (S.pref.recolhidas || []).includes(k);
@@ -415,11 +418,12 @@
     add('she', 'she', 'Strong Hebraico', 'azul', W.strong);
     add('lxx', 'lxx', 'LXX', 'vermelho', W.lxx);
     add('sgr', 'sgr', 'Strong Grego', 'azul2', W.strong);
+    c.push({ k: 'conc', tipo: 'conc', titulo: 'Concordância', cor: 'lilas', g: 'conc', w: W.conc });
     const dic = obrasCat('dicionario'), com = obrasCat('comentario');
-    if (dic.length) dic.forEach(o => c.push({ k: 'obra:' + o.id, tipo: 'obra', obra: o, titulo: o.titulo, cor: 'rosa', g: 'dic', w: W.obra }));
-    else c.push({ k: 'vazio-dic', tipo: 'vazio', cat: 'dicionario', titulo: '', cor: 'rosa', g: 'dic', w: W.vazio });
     if (com.length) com.forEach(o => c.push({ k: 'obra:' + o.id, tipo: 'obra', obra: o, titulo: o.titulo, cor: 'pessego', g: 'com', w: W.obra }));
     else c.push({ k: 'vazio-com', tipo: 'vazio', cat: 'comentario', titulo: '', cor: 'pessego', g: 'com', w: W.vazio });
+    if (dic.length) dic.forEach(o => c.push({ k: 'obra:' + o.id, tipo: 'obra', obra: o, titulo: o.titulo, cor: 'rosa', g: 'dic', w: W.obra }));
+    else c.push({ k: 'vazio-dic', tipo: 'vazio', cat: 'dicionario', titulo: '', cor: 'rosa', g: 'dic', w: W.vazio });
     return c;
   }
 
@@ -445,8 +449,9 @@
     let html = '<colgroup>' + cols.map(c => `<col data-k="${h(c.k)}" style="width:${c.w}px">`).join('') + '</colgroup><thead>';
     html += `<tr class="grupos">
       <th colspan="${conta('info')}" class="g-info">Informações gerais</th>
-      <th colspan="${conta('dic')}" class="g-dic">Dicionários <button class="mais" data-acao="nova-obra" data-cat="dicionario" title="Cadastrar dicionário ou léxico" aria-label="Cadastrar dicionário">${I.plus}</button></th>
+      <th colspan="${conta('conc')}" class="g-conc">Concordância</th>
       <th colspan="${conta('com')}" class="g-com">Comentários <button class="mais" data-acao="nova-obra" data-cat="comentario" title="Cadastrar comentário" aria-label="Cadastrar comentário">${I.plus}</button></th>
+      <th colspan="${conta('dic')}" class="g-dic">Dicionários <button class="mais" data-acao="nova-obra" data-cat="dicionario" title="Cadastrar dicionário ou léxico" aria-label="Cadastrar dicionário">${I.plus}</button></th>
     </tr><tr class="titulos">`;
     cols.forEach(c => {
       if (c.tipo === 'oc') return;
@@ -455,7 +460,8 @@
       let inner = h(c.titulo);
       if (c.recolhivel) inner = `<span class="th-titulo">${h(c.titulo)}</span><button class="olho" data-acao="recolher" data-k="${c.k}" title="Ocultar coluna" aria-label="Ocultar a coluna ${h(c.titulo)}">${I.eye}</button>`;
       if (c.tipo === 'recolhida') inner = `<button class="olho reabrir" data-acao="reabrir" data-k="${c.k}" title="Mostrar ${h(c.titulo)}" aria-label="Mostrar a coluna ${h(c.titulo)}">${I.eyeOff}<span class="th-vertical">${h(c.titulo)}</span></button>`;
-      if (c.tipo === 'pt') inner = `<button class="lapis-th" data-acao="renomear-pt" title="Renomear coluna" aria-label="Renomear a coluna">${I.pencil}</button><span class="th-titulo">${h(c.titulo)}</span><button class="mais" data-acao="nova-trad" title="Adicionar uma tradução" aria-label="Adicionar tradução">${I.plus}</button>`;
+      if (c.tipo === 'pt') inner = `<button class="th-btn th-pt" data-acao="renomear-pt" title="Toque para renomear a coluna">${h(c.titulo)}</button><button class="mais" data-acao="nova-trad" title="Adicionar uma tradução" aria-label="Adicionar tradução">${I.plus}</button>`;
+      if (c.tipo === 'conc') inner = `<span class="th-titulo">Referências</span>`;
       if (c.tipo === 'trad') inner = `<button class="th-btn" data-acao="editar-trad" data-id="${h(c.trad.id)}" title="Renomear ou excluir">${h(c.titulo)}</button>`;
       if (c.tipo === 'obra') inner = `<button class="th-btn" data-acao="editar-obra" data-id="${h(c.obra.id)}" title="${h(c.obra.referencia)}">${h(c.titulo)}</button>`;
       if (c.tipo === 'vazio') inner = `<button class="th-vazio" data-acao="nova-obra" data-cat="${c.cat}">${I.plus} ${c.cat === 'dicionario' ? 'Dicionário' : 'Comentário'}</button>`;
@@ -477,8 +483,7 @@
     switch (c.tipo) {
       case 'pt': {
         const t = cel('pt', i) || r[8];
-        return td('cel-texto cel-pt', `<button class="lapis" data-acao="editar-pt" data-linha="${i}" title="Editar" aria-label="Editar a palavra da linha ${i + 1}">${I.pencil}</button>` +
-          ln(t ? h(t) : '<span class="vazio">—</span>'));
+        return td('cel-texto cel-pt', ln(t ? h(t) : '<span class="vazio">—</span>'), `title="Toque para editar"`);
       }
       case 'recolhida':
         return `<td class="cel-recolhida c-${c.cor}" data-acao-td="reabrir" data-k="${h(c.k)}" aria-hidden="true"></td>`;
@@ -521,6 +526,11 @@
         return td('cel-obra tem', ln(h(p.tipo === 'direta' ? `“${p.texto}”` : p.texto)) +
           ln(`p. ${h(p.pagina)}${cs.length > 1 ? ` · +${cs.length - 1}` : ''}`, 'morf'));
       }
+      case 'conc': {
+        const refs = concRefs(i);
+        if (!refs.length) return td('cel-conc', ln('<span class="mais-cel">+ adicionar</span>'));
+        return td('cel-conc tem', ln(h(refs.map(r => refCurta(r)).join('; ')), 'quebra'));
+      }
       case 'vazio':
         return `<td class="cel-vazia"></td>`;
     }
@@ -547,6 +557,11 @@
     if (document.fonts && document.fonts.ready) document.fonts.ready.then(ajustarRolagem);
     const t = document.getElementById('tabela');
     t.addEventListener('click', aoClicarTabela);
+    if (matchMedia('(hover: hover) and (pointer: fine)').matches) {
+      t.addEventListener('mouseover', (e) => { const td = e.target.closest('td.cel-obra.tem'); if (td) dicaCitacao(td); else esconderDicaCit(); });
+      t.addEventListener('mouseleave', esconderDicaCit);
+      box.addEventListener('scroll', esconderDicaCit, { passive: true });
+    }
     t.addEventListener('keydown', e => { if (e.key === 'Enter' && e.target.matches('td[data-col]')) aoClicarTabela(e); });
   }
   function atualizarTabela() {
@@ -583,6 +598,7 @@
     });
   }
   function aoClicarTabela(e) {
+    esconderDicaCit();
     const b = e.target.closest('[data-acao]');
     if (b) {
       const a = b.dataset.acao;
@@ -605,10 +621,140 @@
     if (col === 'she') return modalStrongHe(i);
     if (col === 'lxx') return modalLxx(i);
     if (col === 'sgr') return modalStrongGr(i);
+    if (col === 'conc') return modalConcordancia(i);
     if (col.startsWith('obra:')) return modalCitacoesCelula(obraPorId(col.slice(5)), i);
   }
 
   const refAtual = () => ({ livro: ctx.sigla, capitulo: ctx.cap, versiculo: ctx.ver });
+
+  // ---------------------------------------------- concordância (referências cruzadas por linha)
+  // Cada linha guarda uma lista como ["Gn|2|4", "Is|7|14-16"] na célula 'conc'.
+  const livroPorAbrev = (ab) => LIVROS.find(l => l.abrev === ab);
+  const ordemLivro = (ab) => { const i = (window.ORDEM_AT || []).indexOf(ab); return i < 0 ? 99 : i; };
+  function concRefs(i) {
+    let v = cel('conc', i);
+    try { v = v ? JSON.parse(v) : []; } catch (e) { v = []; }
+    return (Array.isArray(v) ? v : []).map(x => { const [l, c, vs] = String(x).split('|'); return { l, c: +c, v: vs }; })
+      .filter(r => r.l && r.c && r.v);
+  }
+  const vIni = (r) => parseInt(r.v, 10) || 0;
+  const ordenarRefs = (rs) => rs.sort((a, b) => ordemLivro(a.l) - ordemLivro(b.l) || a.c - b.c || vIni(a) - vIni(b));
+  const refCurta = (r) => `${r.l} ${r.c}:${r.v}`;
+  const refLonga = (r) => `${(livroPorAbrev(r.l) || { nome: r.l }).nome} ${r.c}:${r.v}`;
+  // textos leves (só o português) de cada livro: data/texto/<arquivo>.json
+  const textos = {};
+  function carregarTexto(arquivo) {
+    if (!textos[arquivo]) textos[arquivo] = fetch(`data/texto/${arquivo}.json`).then(r => { if (!r.ok) throw new Error(); return r.json(); })
+      .catch(e => { delete textos[arquivo]; throw e; });
+    return textos[arquivo];
+  }
+  function versosDaRef(r) {
+    const [a, b] = String(r.v).split('-').map(n => parseInt(n, 10));
+    const out = []; for (let x = a; x <= (b || a); x++) out.push(x);
+    return out;
+  }
+  async function textoDaRef(r) {
+    const l = livroPorAbrev(r.l);
+    if (!l || !l.ativo || !l.arquivo) return { aviso: `O texto de ${l ? l.nome : r.l} ainda não foi colocado no aplicativo.` };
+    try {
+      const t = await carregarTexto(l.arquivo);
+      const partes = versosDaRef(r).map(x => t.v[`${r.c}:${x}`]).filter(Boolean);
+      if (!partes.length) return { aviso: `${refLonga(r)} não existe na Bíblia Livre.` };
+      return { texto: partes.join(' ') };
+    } catch (e) { return { aviso: 'Não foi possível carregar o texto agora. Verifique a conexão.' }; }
+  }
+  function modalConcordancia(i) {
+    const r0 = ctx.v.he[i];
+    const opcoes = (window.ORDEM_AT || []).map(ab => { const l = livroPorAbrev(ab); return l ? `<option value="${h(ab)}">${h(l.nome)}</option>` : ''; }).join('');
+    modal({
+      titulo: `Concordância — palavra ${i + 1}`,
+      largo: true,
+      corpo: `<p class="ctx-he"><span lang="he" dir="rtl">${h(r0[0])}</span> <span class="tr">${h(r0[1])}</span> <span class="dica">${h(cel('pt', i) || r0[8] || '')}</span></p>
+        <form class="conc-form" id="conc-form" autocomplete="off">
+          <label class="campo">Livro<select id="cf-livro" required><option value="">Escolha o livro…</option>${opcoes}</select></label>
+          <label class="campo curto">Capítulo<input id="cf-cap" type="number" min="1" inputmode="numeric" required></label>
+          <label class="campo curto">Versículo<input id="cf-ver" inputmode="numeric" placeholder="4 ou 4-6" required></label>
+          <button class="btn" type="submit">Salvar</button>
+        </form>
+        <p class="conc-msg" id="conc-msg" role="status"></p>
+        <div class="conc-caixa" id="conc-lista" aria-live="polite"></div>`,
+      aoAbrir: (el) => {
+        const lista = el.querySelector('#conc-lista'), msg = el.querySelector('#conc-msg');
+        const aviso = (t, erro) => { msg.textContent = t; msg.classList.toggle('erro', !!erro); };
+        async function desenhar() {
+          const rs = ordenarRefs(concRefs(i));
+          if (!rs.length) { lista.innerHTML = '<p class="vazio">Nenhum verso nesta linha ainda. Adicione acima.</p>'; return; }
+          lista.innerHTML = rs.map(r => `<article class="conc-item" data-ref="${h(r.l + '|' + r.c + '|' + r.v)}">
+              <header><b>${h(refLonga(r))}</b><button type="button" class="icone" data-rm title="Remover" aria-label="Remover ${h(refLonga(r))}">${I.del}</button></header>
+              <p class="conc-texto"><span class="vazio">carregando…</span></p></article>`).join('');
+          for (const r of rs) {
+            const t = await textoDaRef(r);
+            const p = lista.querySelector(`[data-ref="${CSS.escape(r.l + '|' + r.c + '|' + r.v)}"] .conc-texto`);
+            if (p) p.innerHTML = t.texto ? h(t.texto) : `<span class="conc-aviso">${h(t.aviso)}</span>`;
+          }
+        }
+        async function gravar(rs) {
+          await salvarCelula('conc', i, rs.length ? JSON.stringify(ordenarRefs(rs).map(r => `${r.l}|${r.c}|${r.v}`)) : '');
+        }
+        el.querySelector('#conc-form').onsubmit = async (e) => {
+          e.preventDefault();
+          const l = el.querySelector('#cf-livro').value, c = parseInt(el.querySelector('#cf-cap').value, 10);
+          const v = el.querySelector('#cf-ver').value.replace(/\s/g, '').replace(/[–—]/g, '-');
+          if (!l || !c || !/^\d+(-\d+)?$/.test(v)) return aviso('Preencha o livro, o capítulo e o versículo (ex.: 4 ou 4-6).', true);
+          const [va, vb] = v.split('-').map(Number);
+          if (vb && vb <= va) return aviso('No intervalo, o segundo versículo deve ser maior que o primeiro.', true);
+          const livro = livroPorAbrev(l);
+          if (livro && livro.ativo && livro.arquivo) {
+            try {
+              const t = await carregarTexto(livro.arquivo);
+              if (!t.capitulos[c - 1]) return aviso(`${livro.nome} tem ${t.capitulos.length} capítulos.`, true);
+              if ((vb || va) > t.capitulos[c - 1]) return aviso(`${livro.nome} ${c} tem ${t.capitulos[c - 1]} versículos.`, true);
+            } catch (err) { /* sem conexão: aceita assim mesmo */ }
+          }
+          const rs = concRefs(i);
+          const nova = { l, c, v };
+          if (rs.some(r => r.l === l && r.c === c && r.v === v)) return aviso(`${refLonga(nova)} já está na lista.`, true);
+          rs.push(nova);
+          try { await gravar(rs); } catch (err) { return aviso('Não foi possível salvar: ' + err.message, true); }
+          aviso(`${refLonga(nova)} salvo.`);
+          el.querySelector('#conc-form').reset();
+          el.querySelector('#cf-livro').focus();
+          desenhar();
+        };
+        lista.addEventListener('click', async (e) => {
+          const b = e.target.closest('[data-rm]'); if (!b) return;
+          const ref = b.closest('[data-ref]').dataset.ref;
+          const rs = concRefs(i).filter(r => `${r.l}|${r.c}|${r.v}` !== ref);
+          try { await gravar(rs); } catch (err) { return aviso('Não foi possível remover: ' + err.message, true); }
+          aviso('Verso removido.');
+          desenhar();
+        });
+        desenhar();
+      },
+      botoes: [{ texto: 'Fechar' }]
+    });
+  }
+
+  // ---------------------------------------------- citação completa ao passar o mouse
+  let $dicaCit = null;
+  function dicaCitacao(td) {
+    const obra = obraPorId(td.dataset.col.slice(5)), i = +td.dataset.linha;
+    const cs = citacoesCelula(obra.id, i);
+    if (!cs.length) return esconderDicaCit();
+    if (!$dicaCit) { $dicaCit = document.createElement('div'); $dicaCit.className = 'dica-cit'; $dicaCit.setAttribute('role', 'tooltip'); document.body.appendChild($dicaCit); }
+    $dicaCit.innerHTML = `<p class="dica-cit-obra">${h(obra.titulo)}</p>` + cs.map(c => `<div class="dica-cit-item">
+        <p class="cit-texto">${c.tipo === 'direta' ? `“${h(c.texto)}”` : h(c.texto)}</p>
+        <p class="cit-ref">${h(refComPagina(obra.referencia, c.pagina))}</p></div>`).join('');
+    const r = td.getBoundingClientRect();
+    $dicaCit.classList.add('visivel');
+    const w = Math.min(420, innerWidth - 24);
+    $dicaCit.style.width = w + 'px';
+    let x = r.left + r.width / 2 - w / 2; x = Math.max(12, Math.min(x, innerWidth - w - 12));
+    const hgt = $dicaCit.offsetHeight;
+    let y = r.bottom + 8; if (y + hgt > innerHeight - 12) y = Math.max(12, r.top - hgt - 8);
+    $dicaCit.style.left = x + 'px'; $dicaCit.style.top = y + 'px';
+  }
+  function esconderDicaCit() { if ($dicaCit) $dicaCit.classList.remove('visivel'); }
 
   // ---------------------------------------------- modais das células
   function chipsVerso() {
@@ -888,6 +1034,7 @@
     { id: 'ep', titulo: 'Espírito de Profecia' },
     { id: 'contexto', titulo: 'Contexto Histórico' },
     { id: 'mapa', titulo: 'Mapa' },
+    { id: 'fotos', titulo: 'Fotos' },
     { id: 'aplicacao', titulo: 'Aplicação' }
   ];
   const TIPOS_BLOCO = { ano: 'Ano', rei: 'Rei', cidade: 'Cidade', regiao: 'Região', tribo: 'Tribo', profetas: 'Profetas', personalizado: 'Personalizado' };
@@ -919,6 +1066,14 @@
         <button class="btn add" data-acao="nova-cit" data-secao="contexto">${I.plus} Adicionar citação teórica</button>`;
     } else if (S.aba === 'mapa') {
       corpo = `<div class="mapa-wrap" id="mapa-wrap"></div>`;
+    } else if (S.aba === 'fotos') {
+      corpo = `<div class="fotos">${S.fotos.map(f => `<figure class="foto" data-foto="${h(f.id)}">
+          <button class="foto-img" data-acao="ver-foto" aria-label="Ampliar ${h(f.legenda || 'foto')}"><img alt="${h(f.legenda || '')}" data-caminho="${h(f.caminho)}"></button>
+          <figcaption>${f.legenda ? h(f.legenda) : '<span class="vazio">Sem legenda</span>'}</figcaption>
+          <div class="foto-acoes"><button class="icone" data-acao="editar-foto" title="Editar legenda" aria-label="Editar legenda">${I.edit}</button>
+            <button class="icone" data-acao="apagar-foto" title="Excluir" aria-label="Excluir foto">${I.del}</button></div>
+        </figure>`).join('')}
+        <button class="foto foto-nova" data-acao="nova-foto">${I.plus}<span>Inserir foto</span></button></div>`;
     } else {
       const bs = S.blocos.filter(b => b.secao === 'aplicacao');
       corpo = `<div class="lista-cit">${bs.map(b => `<article class="cartao" data-bloco="${h(b.id)}">
@@ -940,6 +1095,13 @@
     const ref = refAtual();
     mapaAtual = MapaExegese.montar(el, {
       vista: S.mapa && S.mapa.vista, elementos: (S.mapa && S.mapa.elementos) || [],
+      ref, refTexto: `${ref.livro} ${ref.capitulo}:${ref.versiculo}`,
+      mapas: {
+        listar: () => D.listar('mapas_salvos', {}, null),
+        criar: (r) => D.inserir('mapas_salvos', { ...r, atualizado_em: new Date().toISOString() }),
+        atualizar: (id, r) => D.alterar('mapas_salvos', id, { ...r, atualizado_em: new Date().toISOString() }),
+        apagar: (id) => D.apagar('mapas_salvos', id)
+      },
       nomeArquivo: `mapa-${ref.livro}-${ref.capitulo}-${ref.versiculo}`.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase(),
       salvar: async ({ vista, elementos }) => {
         S.mapa = await D.gravar('mapas', { ...ref, vista, elementos }, ['livro', 'capitulo', 'versiculo']);
@@ -951,6 +1113,7 @@
     const el = document.getElementById('inferior'); if (!el) return;
     el.innerHTML = inferiorHTML();
     if (S.aba === 'mapa') montarMapa();
+    if (S.aba === 'fotos') preencherFotos();
   }
 
   function ligarInferior() {
@@ -965,6 +1128,17 @@
         return modalCitacao({ secao, categoria: secao === 'ep' ? 'ep' : 'geral', aoSalvar: atualizarInferior });
       }
       if (a.endsWith('-cit')) return acaoCitacao(a, b.closest('[data-cit]').dataset.cit, atualizarInferior);
+      if (a === 'nova-foto') return modalFoto();
+      if (a.endsWith('-foto')) {
+        const f = S.fotos.find(x => x.id === b.closest('[data-foto]').dataset.foto); if (!f) return;
+        if (a === 'ver-foto') return verFoto(f);
+        if (a === 'editar-foto') return modalFoto(f);
+        if (a === 'apagar-foto') {
+          if (!(await confirmar('Excluir esta foto?'))) return;
+          try { await D.apagar('fotos', f.id); await D.fotoApagar(f.caminho); } catch (err) { return toast(err.message, true); }
+          S.fotos = S.fotos.filter(x => x.id !== f.id); return atualizarInferior();
+        }
+      }
       if (a === 'novo-bloco') return modalBloco({ secao: 'contexto' });
       if (a === 'novo-aplicacao') return modalBloco({ secao: 'aplicacao' });
       const el = b.closest('[data-bloco]'); if (!el) return;
@@ -978,6 +1152,78 @@
         try { await D.apagar('blocos', id); } catch (err) { return toast(err.message, true); }
         S.blocos = S.blocos.filter(x => x.id !== id); atualizarInferior();
       }
+    });
+  }
+
+  // ---------------------------------------------- fotos do versículo
+  const urlsFotos = new Map();   // caminho -> url (links assinados valem algumas horas)
+  async function urlFoto(caminho) {
+    if (!urlsFotos.has(caminho)) urlsFotos.set(caminho, D.fotoUrl(caminho).catch(e => { urlsFotos.delete(caminho); throw e; }));
+    return urlsFotos.get(caminho);
+  }
+  function preencherFotos() {
+    document.querySelectorAll('#inferior img[data-caminho]').forEach(async img => {
+      try { img.src = await urlFoto(img.dataset.caminho); } catch (e) { img.closest('.foto').classList.add('falhou'); }
+    });
+  }
+  // reduz a foto (lado maior até 1800 px, JPEG) antes de enviar
+  async function prepararFoto(arquivo) {
+    const url = URL.createObjectURL(arquivo);
+    try {
+      const img = await new Promise((ok, falha) => { const i = new Image(); i.onload = () => ok(i); i.onerror = falha; i.src = url; });
+      const max = D.modo === 'demo' ? 1200 : 1800, k = Math.min(1, max / Math.max(img.naturalWidth, img.naturalHeight));
+      const cv = document.createElement('canvas');
+      cv.width = Math.round(img.naturalWidth * k); cv.height = Math.round(img.naturalHeight * k);
+      const g = cv.getContext('2d'); g.fillStyle = '#fff'; g.fillRect(0, 0, cv.width, cv.height); g.drawImage(img, 0, 0, cv.width, cv.height);
+      return await new Promise(ok => cv.toBlob(ok, 'image/jpeg', D.modo === 'demo' ? 0.78 : 0.86));
+    } finally { URL.revokeObjectURL(url); }
+  }
+  function modalFoto(foto = null) {
+    let arquivo = null;
+    modal({
+      titulo: foto ? 'Editar legenda' : 'Inserir foto',
+      corpo: `${foto ? '' : `<label class="foto-escolher" id="m-escolher">
+            <input type="file" id="m-arq" accept="image/*" hidden>
+            <span class="foto-previa" id="m-previa">${I.plus}<span>Escolher foto</span></span></label>`}
+        <label class="campo">Legenda<input id="m-leg" maxlength="160" value="${h(foto ? foto.legenda : '')}" placeholder="Ex.: Ruínas de Siquém (Tell Balata)"></label>`,
+      aoAbrir: (el) => {
+        const inp = el.querySelector('#m-arq'); if (!inp) return el.querySelector('#m-leg').focus();
+        inp.onchange = () => {
+          arquivo = inp.files[0]; if (!arquivo) return;
+          const pv = el.querySelector('#m-previa');
+          pv.innerHTML = `<img alt="Prévia" src="${URL.createObjectURL(arquivo)}">`; pv.classList.add('com-foto');
+          el.querySelector('#m-leg').focus();
+        };
+      },
+      botoes: [{ texto: 'Cancelar', classe: 'sec' }, { texto: 'Salvar', acao: async (el) => {
+        const legenda = valor(el, '#m-leg');
+        if (foto) {
+          Object.assign(foto, await D.alterar('fotos', foto.id, { legenda }));
+          return atualizarInferior();
+        }
+        if (!arquivo) { toast('Escolha uma foto.', true); return false; }
+        if (!/^image\//.test(arquivo.type)) { toast('Esse arquivo não é uma imagem.', true); return false; }
+        const btn = el.querySelector('.modal-rodape .btn:last-child');
+        if (btn) { btn.disabled = true; btn.textContent = 'Enviando…'; }
+        try {
+          const blob = await prepararFoto(arquivo);
+          const caminho = await D.fotoEnviar(blob);
+          S.fotos.push(await D.inserir('fotos', { ...refAtual(), caminho, legenda, ordem: S.fotos.length }));
+        } catch (err) {
+          if (btn) { btn.disabled = false; btn.textContent = 'Salvar'; }
+          toast('Não foi possível enviar a foto: ' + (err.message || err) + (D.modo === 'demo' ? ' (no modo demonstração o espaço do navegador é pequeno)' : ''), true);
+          return false;
+        }
+        atualizarInferior();
+      } }]
+    });
+  }
+  async function verFoto(f) {
+    let url = ''; try { url = await urlFoto(f.caminho); } catch (e) { return toast('Não foi possível abrir a foto.', true); }
+    modal({
+      titulo: f.legenda || 'Foto', largo: true,
+      corpo: `<figure class="foto-grande"><img src="${h(url)}" alt="${h(f.legenda || '')}">${f.legenda ? `<figcaption>${h(f.legenda)}</figcaption>` : ''}</figure>`,
+      botoes: [{ texto: 'Fechar' }]
     });
   }
 

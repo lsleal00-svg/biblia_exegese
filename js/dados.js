@@ -1,6 +1,6 @@
 // Camada de dados: Supabase (padrão) ou modo demonstração (?demo=1, só no navegador).
 (function () {
-  const TABELAS = ['traducoes_usuario', 'celulas', 'lexico_usuario', 'obras', 'citacoes', 'blocos', 'mapas', 'preferencias'];
+  const TABELAS = ['traducoes_usuario', 'celulas', 'lexico_usuario', 'obras', 'citacoes', 'blocos', 'mapas', 'preferencias', 'mapas_salvos', 'fotos'];
   const uuid = () => (crypto.randomUUID ? crypto.randomUUID() :
     'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, c => {
       const r = Math.random() * 16 | 0; return (c === 'x' ? r : (r & 0x3 | 0x8)).toString(16);
@@ -57,6 +57,19 @@
       async apagar(tabela, id) {
         const { error } = await sb.from(tabela).delete().eq('id', id); falha(error);
       },
+      // fotos: ficam no Storage (bucket "fotos", pasta do usuário); a tabela guarda o caminho e a legenda
+      async fotoEnviar(blob) {
+        const caminho = `${userId}/${uuid()}.jpg`;
+        const { error } = await sb.storage.from('fotos').upload(caminho, blob, { contentType: 'image/jpeg', upsert: false });
+        falha(error); return caminho;
+      },
+      async fotoUrl(caminho) {
+        const { data, error } = await sb.storage.from('fotos').createSignedUrl(caminho, 60 * 60 * 6);
+        falha(error); return data.signedUrl;
+      },
+      async fotoApagar(caminho) {
+        const { error } = await sb.storage.from('fotos').remove([caminho]); falha(error);
+      },
       async gravar(tabela, linha, chaves) {
         const { data, error } = await sb.from(tabela)
           .upsert({ ...linha, user_id: userId, atualizado_em: new Date().toISOString() },
@@ -98,6 +111,12 @@
         if (tabela === 'obras') banco.citacoes = banco.citacoes.filter(c => c.obra_id !== id);
         salvar();
       },
+      // no modo demonstração a foto fica no próprio navegador, como dataURL
+      async fotoEnviar(blob) {
+        return await new Promise((ok, falha) => { const r = new FileReader(); r.onload = () => ok(r.result); r.onerror = falha; r.readAsDataURL(blob); });
+      },
+      async fotoUrl(caminho) { return caminho; },
+      async fotoApagar() {},
       async gravar(tabela, linha, chaves) {
         let l = banco[tabela].find(x => chaves.every(k => x[k] === linha[k]));
         if (l) Object.assign(l, linha, { atualizado_em: new Date().toISOString() });

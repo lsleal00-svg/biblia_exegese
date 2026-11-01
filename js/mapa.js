@@ -1,9 +1,11 @@
 /* Mapa do versículo: imagem de satélite do Crescente Fértil + elementos desenhados pelo usuário.
-   Uso: const m = MapaExegese.montar(elemento, { vista, elementos, salvar(estado) }); m.destruir(); */
+   Uso: const m = MapaExegese.montar(elemento, { vista, elementos, salvar(estado), mapas, ref, refTexto }); m.destruir();
+   "mapas" (opcional) = { listar(), criar(reg), atualizar(id, reg), apagar(id) } para os mapas salvos com nome. */
 (function () {
   'use strict';
   const REGIAO = [[26.4, 25.2], [38.7, 51.2]];          // Egito → Mesopotâmia (recorte do Google Maps enviado)
-  const LIMITES = [[20, 16], [44, 60]];
+  const LIMITES = [[20, 4], [47, 62]];                 // inclui Roma (mapa do NT)
+  const REGIAO_NT = [[30.2, 11.5], [42.2, 37.5]];
   const CORES = ['#2a1c10', '#b3261e', '#f2c14e', '#ffffff', '#1f5fa8', '#2e7d4f', '#7b3fa0', '#e8742a'];
   const h = (s) => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
   const uid = () => Math.random().toString(36).slice(2, 10);
@@ -77,6 +79,10 @@
             <label class="mapa-cor-livre" title="Outra cor"><input type="color" value="${estado.cor}" aria-label="Escolher outra cor"></label>
           </div>
           <p class="mapa-dica" aria-live="polite">${DICA_SELECAO}</p>
+          <div class="mapa-meus" role="group" aria-label="Meus mapas">
+            <button type="button" class="mapa-meu-btn" data-acao="salvar-mapa"><svg viewBox="0 0 24 24"><path d="M5 3h11l3 3v15H5z"/><path d="M8 3v6h8V3M8 21v-7h8v7"/></svg>Salvar mapa</button>
+            <button type="button" class="mapa-meu-btn" data-acao="buscar-mapas"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="6.5"/><path d="m16 16 5 5"/></svg>Buscar mapas</button>
+          </div>
           <button type="button" class="mapa-limpar" data-acao="limpar"><svg viewBox="0 0 24 24"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13M10 11v6M14 11v6"/></svg>Limpar tudo</button>
         </aside>
         <div class="mapa-area">
@@ -87,6 +93,11 @@
             <button type="button" class="mapa-btn" data-acao="tela" title="Tela cheia" aria-label="Tela cheia"><svg viewBox="0 0 24 24"><path d="M8 3H3v5M16 3h5v5M8 21H3v-5M16 21h5v-5"/></svg></button>
           </div>
           <span class="mapa-status" aria-live="polite"></span>
+          <div class="mapa-aberto" hidden>
+            <span class="ma-txt">Mapa salvo: <b class="ma-nome"></b> <i class="ma-alterado" hidden>· alterações não salvas</i></span>
+            <button type="button" class="ma-fechar" data-acao="fechar-salvo">Voltar ao mapa do versículo</button>
+          </div>
+          <div class="mapa-dialogo" role="dialog" aria-modal="false" hidden><div class="mapa-confirma-cartao"></div></div>
           <div class="mapa-confirma" role="alertdialog" aria-modal="false" aria-labelledby="mapa-confirma-txt" hidden>
             <div class="mapa-confirma-cartao">
               <p id="mapa-confirma-txt"></p>
@@ -111,20 +122,54 @@
     const nasa = L.tileLayer('https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/BlueMarble_ShadedRelief_Bathymetry/default/GoogleMapsCompatible_Level8/{z}/{y}/{x}.jpeg', {
       maxZoom: 18, maxNativeZoom: 8, crossOrigin: 'anonymous', attribution: 'Imagens: NASA Blue Marble (domínio público)'
     });
+    map.createPane('rotulosBib'); map.getPane('rotulosBib').style.zIndex = 450; map.getPane('rotulosBib').style.pointerEvents = 'none';
+    // mapas bíblicos: relevo físico em tom antigo + cidades, montes, regiões e águas
+    function camadaBiblica(k) {
+      const fundo = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Physical_Map/MapServer/tile/{z}/{y}/{x}', {
+        maxZoom: 18, maxNativeZoom: 8, crossOrigin: 'anonymous', className: 'tiles-antigo',
+        attribution: 'Relevo © Esri, US National Park Service · Lugares: OpenBible.info (CC BY)'
+      });
+      const dados = (window.MAPAS_BIBLICOS && MAPAS_BIBLICOS[k]) ? MAPAS_BIBLICOS[k].lugares : [];
+      const rot = dados.map(([n, la, lo, rk, t, lado]) => L.marker([la, lo], {
+        pane: 'rotulosBib', interactive: false, keyboard: false,
+        icon: L.divIcon({ className: `rb rb-${t} rb-rk${rk}${lado === 'e' ? ' rb-e' : ''}`, iconSize: null, iconAnchor: [0, 0],
+          html: (t === 'c' || t === 'm' ? '<span class="rb-ponto"></span>' : '') + `<span class="rb-nome">${h(n)}</span>` })
+      }));
+      return L.layerGroup([fundo, ...rot]);
+    }
+    const BASES = { sat: esri, relevo: nasa, at: camadaBiblica('at'), nt: camadaBiblica('nt') };
+    const NOMES_BASE = { sat: 'Satélite (alta definição)', relevo: 'Relevo (NASA)', at: 'Mapa bíblico — Antigo Testamento', nt: 'Mapa bíblico — Novo Testamento' };
+    const chaveBase = (layer) => Object.keys(BASES).find(k => BASES[k] === layer) || 'sat';
+    estado.base = (estado.vista && BASES[estado.vista.base]) ? estado.vista.base : 'sat';
+    function usarBase(k) {
+      k = BASES[k] ? k : 'sat';
+      Object.entries(BASES).forEach(([x, l]) => { if (x !== k && map.hasLayer(l)) map.removeLayer(l); });
+      if (!map.hasLayer(BASES[k])) BASES[k].addTo(map);
+      estado.base = k;
+    }
     let falhas = 0;
-    esri.on('tileerror', () => { if (++falhas === 12 && map.hasLayer(esri)) { map.removeLayer(esri); nasa.addTo(map); } });
-    esri.addTo(map);
-    L.control.layers({ 'Satélite (alta definição)': esri, 'Relevo (NASA)': nasa }, null, { position: 'topright' }).addTo(map);
+    esri.on('tileerror', () => { if (++falhas === 12 && map.hasLayer(esri)) { usarBase('relevo'); } });
+    usarBase(estado.base);
+    L.control.layers(Object.fromEntries(Object.keys(BASES).map(k => [NOMES_BASE[k], BASES[k]])), null, { position: 'topright' }).addTo(map);
+    const marcarZoom = () => { $mapa.dataset.z = Math.floor(map.getZoom()); };
+    map.on('zoomend', marcarZoom);
     map.createPane('panelX'); map.getPane('panelX').style.zIndex = 680;   // o X fica acima de tudo (popups: 700)
     if (estado.vista) map.setView([estado.vista.lat, estado.vista.lng], estado.vista.zoom);
     else map.fitBounds(REGIAO);
+    marcarZoom();
 
     // ------------------------------------------------------------ salvar
     let timer = null, arrastouEm = 0;
     function marcar(txt) { $status.textContent = txt; $status.classList.toggle('visivel', !!txt); }
+    let ignorarAte = 0;
+    const vistaAtual = () => { const c = map.getCenter(); return { lat: +c.lat.toFixed(5), lng: +c.lng.toFixed(5), zoom: map.getZoom(), base: estado.base }; };
     function salvarJa() {
-      const c = map.getCenter();
-      estado.vista = { lat: +c.lat.toFixed(5), lng: +c.lng.toFixed(5), zoom: map.getZoom() };
+      timer = null;
+      if (estado.aberto) {   // mapa salvo aberto: só marca que há alterações; grava com "Salvar mapa"
+        if (Date.now() > ignorarAte) { estado.alterado = true; faixaAberto(); }
+        return;
+      }
+      estado.vista = vistaAtual();
       marcar('Salvando…');
       Promise.resolve(opcoes.salvar({ vista: estado.vista, elementos: estado.elementos }))
         .then(() => { marcar('Salvo'); setTimeout(() => marcar(''), 1400); })
@@ -132,6 +177,7 @@
     }
     const salvar = () => { clearTimeout(timer); timer = setTimeout(salvarJa, 600); };
     map.on('moveend zoomend', salvar);
+    map.on('baselayerchange', (ev) => { const k = chaveBase(ev.layer); if (k !== estado.base) { estado.base = k; salvar(); } });
 
     // ------------------------------------------------------------ desenho dos elementos
     const camadas = new Map();   // id -> [layers]
@@ -302,7 +348,144 @@
       fecharConfirma();
     };
     L.DomEvent.disableClickPropagation($conf);
-    el.querySelector('[data-acao="recorte"]').onclick = () => map.flyToBounds(REGIAO, { duration: reduzir ? 0 : 0.8 });
+    el.querySelector('[data-acao="recorte"]').onclick = () => map.flyToBounds(estado.base === 'nt' ? REGIAO_NT : REGIAO, { duration: reduzir ? 0 : 0.8 });
+
+    // ------------------------------------------------------------ mapas salvos com nome
+    const $aberto = el.querySelector('.mapa-aberto'), $dlg = el.querySelector('.mapa-dialogo');
+    estado.aberto = null; estado.alterado = false;
+    let copiaVerso = null;
+    function faixaAberto() {
+      $aberto.hidden = !estado.aberto;
+      casca.classList.toggle('com-salvo', !!estado.aberto);
+      if (!estado.aberto) return;
+      $aberto.querySelector('.ma-nome').textContent = estado.aberto.nome;
+      $aberto.querySelector('.ma-alterado').hidden = !estado.alterado;
+    }
+    function aplicarMapa(m) {
+      map.closePopup(); selecionar(null);
+      estado.elementos.forEach(e => remover(e.id));
+      estado.elementos = (m.elementos || []).map(e => ({ ...e, pontos: e.pontos ? e.pontos.map(p => p.slice()) : e.pontos }));
+      estado.elementos.forEach(desenhar);
+      ignorarAte = Date.now() + 900;
+      usarBase((m.vista && m.vista.base) || 'sat');
+      if (m.vista) map.setView([m.vista.lat, m.vista.lng], m.vista.zoom, { animate: false });
+      marcarZoom();
+    }
+    function dialogo(html, ligar) {
+      const cart = $dlg.firstElementChild;
+      cart.innerHTML = html; $dlg.hidden = false;
+      if (window.gsap && !reduzir) gsap.fromTo(cart, { autoAlpha: 0, y: 10, scale: 0.97 }, { autoAlpha: 1, y: 0, scale: 1, duration: 0.24, ease: 'power3.out' });
+      ligar(cart);
+      const f = cart.querySelector('input, button'); if (f) setTimeout(() => f.focus(), 30);
+    }
+    const fecharDialogo = () => { $dlg.hidden = true; $dlg.firstElementChild.innerHTML = ''; };
+    $dlg.addEventListener('click', (ev) => { if (ev.target === $dlg) fecharDialogo(); });
+    L.DomEvent.disableClickPropagation($dlg); L.DomEvent.disableScrollPropagation($dlg);
+    const semMapas = () => { marcar('Os mapas salvos precisam da conta conectada.'); setTimeout(() => marcar(''), 2500); };
+    const registro = (nome) => ({ nome, vista: vistaAtual(), elementos: estado.elementos.map(e => ({ ...e })), ...(estado.aberto ? {} : (opcoes.ref || {})) });
+
+    function dialogoSalvar() {
+      if (!opcoes.mapas) return semMapas();
+      escolher(null); map.closePopup();
+      const nome0 = estado.aberto ? estado.aberto.nome : (opcoes.refTexto ? 'Mapa de ' + opcoes.refTexto : '');
+      dialogo(`<p class="md-titulo">Salvar mapa</p>
+        <p class="md-dica">O mapa fica guardado exatamente como está agora: posição, zoom, tipo de mapa e desenhos.</p>
+        <label class="md-campo">Nome do mapa<input class="md-nome" maxlength="80" value="${h(nome0)}" placeholder="Ex.: Viagem de Abraão"></label>
+        <div class="mapa-confirma-acoes">
+          <button type="button" class="ed-ok sec" data-md="cancelar">Cancelar</button>
+          ${estado.aberto ? '<button type="button" class="ed-ok sec" data-md="novo">Salvar como novo</button><button type="button" class="ed-ok" data-md="atualizar">Salvar alterações</button>' : '<button type="button" class="ed-ok" data-md="novo">Salvar</button>'}
+        </div>`, (cart) => {
+        const inp = cart.querySelector('.md-nome');
+        inp.addEventListener('keydown', ev => { if (ev.key === 'Enter') cart.querySelector('[data-md="atualizar"], [data-md="novo"]:last-child').click(); });
+        cart.onclick = async (ev) => {
+          const b = ev.target.closest('[data-md]'); if (!b) return;
+          if (b.dataset.md === 'cancelar') return fecharDialogo();
+          const nome = inp.value.trim();
+          if (!nome) { inp.focus(); inp.classList.add('erro'); return; }
+          b.disabled = true;
+          try {
+            if (b.dataset.md === 'atualizar') {
+              await opcoes.mapas.atualizar(estado.aberto.id, registro(nome));
+              estado.aberto.nome = nome; estado.alterado = false; faixaAberto();
+            } else {
+              const novo = await opcoes.mapas.criar(registro(nome));
+              if (estado.aberto) { estado.aberto = novo; estado.alterado = false; faixaAberto(); }
+            }
+            fecharDialogo(); marcar(`Mapa “${nome}” salvo`); setTimeout(() => marcar(''), 1800);
+          } catch (e) { b.disabled = false; marcar('Não salvou: ' + (e && e.message || 'erro')); }
+        };
+      });
+    }
+    function dataCurta(iso) { try { return new Date(iso).toLocaleDateString('pt-BR'); } catch (e) { return ''; } }
+    async function dialogoBuscar() {
+      if (!opcoes.mapas) return semMapas();
+      escolher(null); map.closePopup();
+      let lista = [];
+      dialogo(`<p class="md-titulo">Meus mapas</p>
+        <label class="md-campo"><span class="vh">Procurar pelo nome</span><input class="md-filtro" type="search" placeholder="Procurar pelo nome…"></label>
+        <div class="md-lista" role="list"><p class="md-dica">Carregando…</p></div>
+        <div class="mapa-confirma-acoes"><button type="button" class="ed-ok sec" data-md="cancelar">Fechar</button></div>`, async (cart) => {
+        const $lista = cart.querySelector('.md-lista'), $f = cart.querySelector('.md-filtro');
+        const desenharLista = () => {
+          const q = $f.value.trim().toLowerCase();
+          const vis = lista.filter(m => !q || m.nome.toLowerCase().includes(q));
+          $lista.innerHTML = vis.length ? vis.map(m => `<div class="md-item" role="listitem" data-id="${h(m.id)}">
+              <button type="button" class="md-abrir" data-md="abrir"><b>${h(m.nome)}</b><small>${m.livro ? h(`${m.livro} ${m.capitulo}:${m.versiculo}`) + ' · ' : ''}${h(dataCurta(m.atualizado_em || m.criado_em))}</small></button>
+              <button type="button" class="md-apagar" data-md="apagar" title="Excluir" aria-label="Excluir ${h(m.nome)}"><svg viewBox="0 0 24 24"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13"/></svg></button>
+            </div>`).join('') : `<p class="md-dica">${lista.length ? 'Nenhum mapa com esse nome.' : 'Você ainda não salvou nenhum mapa. Use “Salvar mapa”.'}</p>`;
+        };
+        $f.oninput = desenharLista;
+        cart.onclick = async (ev) => {
+          const b = ev.target.closest('[data-md]'); if (!b) return;
+          if (b.dataset.md === 'cancelar') return fecharDialogo();
+          const item = b.closest('[data-id]'); const m = item && lista.find(x => x.id === item.dataset.id); if (!m) return;
+          if (b.dataset.md === 'abrir') { fecharDialogo(); return abrirSalvo(m); }
+          if (b.dataset.md === 'apagar') {
+            if (!b.classList.contains('confirmar')) { b.classList.add('confirmar'); b.innerHTML = 'Excluir?'; return; }
+            try { await opcoes.mapas.apagar(m.id); } catch (e) { return marcar('Não excluiu: ' + e.message); }
+            lista = lista.filter(x => x.id !== m.id);
+            if (estado.aberto && estado.aberto.id === m.id) { estado.aberto = null; estado.alterado = false; faixaAberto(); }
+            desenharLista();
+          }
+        };
+        try { lista = await opcoes.mapas.listar(); lista.sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR')); }
+        catch (e) { $lista.innerHTML = `<p class="md-dica">Não foi possível carregar: ${h(e.message)}</p>`; return; }
+        desenharLista();
+      });
+    }
+    function abrirSalvo(m) {
+      if (!estado.aberto) {
+        if (timer) { clearTimeout(timer); salvarJa(); }   // grava o mapa do versículo antes de trocar
+        copiaVerso = { vista: vistaAtual(), elementos: estado.elementos.map(e => ({ ...e })) };
+      }
+      estado.aberto = { ...m }; estado.alterado = false;
+      aplicarMapa(m); faixaAberto();
+      marcar(`Mapa “${m.nome}” aberto`); setTimeout(() => marcar(''), 1600);
+    }
+    function voltarAoVerso() {
+      estado.aberto = null; estado.alterado = false; faixaAberto();
+      if (copiaVerso) aplicarMapa(copiaVerso);
+      copiaVerso = null;
+    }
+    function fecharSalvo() {
+      if (!estado.alterado) return voltarAoVerso();
+      dialogo(`<p class="md-titulo">Alterações não salvas</p>
+        <p class="md-dica">O mapa “${h(estado.aberto.nome)}” foi alterado. O que fazer com as alterações?</p>
+        <div class="mapa-confirma-acoes"><button type="button" class="ed-ok sec" data-md="cancelar">Continuar editando</button>
+          <button type="button" class="ed-excluir" data-md="descartar">Descartar</button><button type="button" class="ed-ok" data-md="salvar">Salvar e voltar</button></div>`, (cart) => {
+        cart.onclick = async (ev) => {
+          const b = ev.target.closest('[data-md]'); if (!b) return;
+          if (b.dataset.md === 'cancelar') return fecharDialogo();
+          if (b.dataset.md === 'salvar') {
+            try { await opcoes.mapas.atualizar(estado.aberto.id, registro(estado.aberto.nome)); } catch (e) { return marcar('Não salvou: ' + e.message); }
+          }
+          fecharDialogo(); voltarAoVerso();
+        };
+      });
+    }
+    el.querySelector('[data-acao="salvar-mapa"]').onclick = dialogoSalvar;
+    el.querySelector('[data-acao="buscar-mapas"]').onclick = dialogoBuscar;
+    el.querySelector('[data-acao="fechar-salvo"]').onclick = fecharSalvo;
     el.querySelector('[data-acao="png"]').onclick = () => exportarPNG();
     el.querySelector('[data-acao="tela"]').onclick = () => {
       casca.classList.toggle('tela-cheia');
@@ -437,19 +620,44 @@
       const rel = (n) => { const r = n.getBoundingClientRect(); return { x: r.left - o.left, y: r.top - o.top, w: r.width, h: r.height }; };
       if (comMapa) {
         cont.querySelectorAll('.leaflet-tile-pane .leaflet-layer').forEach(camada => {
-          const op = parseFloat(getComputedStyle(camada).opacity) || 1;
+          const cs = getComputedStyle(camada);
+          const op = parseFloat(cs.opacity) || 1;
+          ctx.filter = cs.filter && cs.filter !== 'none' ? cs.filter : 'none';
           camada.querySelectorAll('img.leaflet-tile-loaded').forEach(img => {
             const r = rel(img); ctx.globalAlpha = op;
             ctx.drawImage(img, r.x, r.y, r.w, r.h);
           });
         });
-        ctx.globalAlpha = 1;
+        ctx.globalAlpha = 1; ctx.filter = 'none';
       }
       // traços (setas, linhas, pincel)
       for (const svg of cont.querySelectorAll('.leaflet-overlay-pane svg')) {
         const r = rel(svg); if (!r.w) continue;
         const img = await svgParaImg(svg, r.w, r.h);
         ctx.drawImage(img, r.x, r.y, r.w, r.h);
+      }
+      // nomes dos mapas bíblicos
+      for (const rb of cont.querySelectorAll('.leaflet-rotulosBib-pane .rb')) {
+        if (!rb.offsetParent && getComputedStyle(rb).display === 'none') continue;
+        const pt = rb.querySelector('.rb-ponto'), nm = rb.querySelector('.rb-nome');
+        if (pt && getComputedStyle(pt).display !== 'none') {
+          const r = rel(pt), cs = getComputedStyle(pt);
+          ctx.fillStyle = cs.backgroundColor; ctx.strokeStyle = cs.borderTopColor; ctx.lineWidth = parseFloat(cs.borderTopWidth) || 1.5;
+          ctx.beginPath();
+          if (rb.classList.contains('rb-m')) { ctx.moveTo(r.x + r.w / 2, r.y); ctx.lineTo(r.x + r.w, r.y + r.h); ctx.lineTo(r.x, r.y + r.h); ctx.closePath(); }
+          else ctx.arc(r.x + r.w / 2, r.y + r.h / 2, r.w / 2, 0, Math.PI * 2);
+          ctx.fill(); if (ctx.lineWidth) ctx.stroke();
+        }
+        if (nm && nm.offsetParent) {
+          const r = rel(nm), cs = getComputedStyle(nm);
+          ctx.font = `${cs.fontStyle} ${cs.fontWeight} ${cs.fontSize} ${cs.fontFamily}`;
+          if ('letterSpacing' in ctx) ctx.letterSpacing = cs.letterSpacing === 'normal' ? '0px' : cs.letterSpacing;
+          ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
+          ctx.lineJoin = 'round'; ctx.lineWidth = 3.5; ctx.strokeStyle = 'rgba(248,240,222,.9)';
+          ctx.strokeText(nm.textContent, r.x, r.y + r.h / 2);
+          ctx.fillStyle = cs.color; ctx.fillText(nm.textContent, r.x, r.y + r.h / 2);
+          if ('letterSpacing' in ctx) ctx.letterSpacing = '0px';
+        }
       }
       // marcadores, na ordem das camadas (o X fica por cima)
       const icones = [...cont.querySelectorAll('.leaflet-marker-pane .leaflet-marker-icon'), ...cont.querySelectorAll('.leaflet-panelX-pane .leaflet-marker-icon')];
@@ -543,7 +751,7 @@
     return {
       map,
       destruir() {
-        if (timer) { clearTimeout(timer); salvarJa(); }
+        if (timer && !estado.aberto) { clearTimeout(timer); salvarJa(); }
         document.removeEventListener('keydown', aoTecla);
         if (ro) ro.disconnect();
         window.removeEventListener('pointermove', aoMoverSelecao);

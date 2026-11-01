@@ -15,31 +15,31 @@ window.CANON = [
     id: 'neviim', nome: 'Nevi’im', hebraico: 'נְבִיאִים', subtitulo: 'Os Profetas', cor: 'neviim',
     grupos: [
       { titulo: 'Profetas Anteriores', cor: 'anteriores', livros: [
-        { abrev: 'Js', nome: 'Josué', heb: 'יְהוֹשֻׁעַ' },
-        { abrev: 'Jz', nome: 'Juízes', heb: 'שׁוֹפְטִים' },
-        { abrev: '1Sm', nome: '1 Samuel', heb: 'שְׁמוּאֵל א' },
-        { abrev: '2Sm', nome: '2 Samuel', heb: 'שְׁמוּאֵל ב' },
-        { abrev: '1Rs', nome: '1 Reis', heb: 'מְלָכִים א' },
-        { abrev: '2Rs', nome: '2 Reis', heb: 'מְלָכִים ב' }
+        { abrev: 'Js', nome: 'Josué', heb: 'יְהוֹשֻׁעַ', arquivo: 'js', ativo: true },
+        { abrev: 'Jz', nome: 'Juízes', heb: 'שׁוֹפְטִים', arquivo: 'jz', ativo: true },
+        { abrev: '1Sm', nome: '1 Samuel', heb: 'שְׁמוּאֵל א', arquivo: '1sm', ativo: true },
+        { abrev: '2Sm', nome: '2 Samuel', heb: 'שְׁמוּאֵל ב', arquivo: '2sm', ativo: true },
+        { abrev: '1Rs', nome: '1 Reis', heb: 'מְלָכִים א', arquivo: '1rs', ativo: true },
+        { abrev: '2Rs', nome: '2 Reis', heb: 'מְלָכִים ב', arquivo: '2rs', ativo: true }
       ]},
       { titulo: 'Profetas Posteriores', cor: 'posteriores', livros: [
-        { abrev: 'Is', nome: 'Isaías', heb: 'יְשַׁעְיָהוּ' },
-        { abrev: 'Jr', nome: 'Jeremias', heb: 'יִרְמְיָהוּ' },
-        { abrev: 'Ez', nome: 'Ezequiel', heb: 'יְחֶזְקֵאל' }
+        { abrev: 'Is', nome: 'Isaías', heb: 'יְשַׁעְיָהוּ', arquivo: 'is', ativo: true },
+        { abrev: 'Jr', nome: 'Jeremias', heb: 'יִרְמְיָהוּ', arquivo: 'jr', ativo: true },
+        { abrev: 'Ez', nome: 'Ezequiel', heb: 'יְחֶזְקֵאל', arquivo: 'ez', ativo: true }
       ]},
       { titulo: 'Os Doze', cor: 'doze', livros: [
-        { abrev: 'Os', nome: 'Oseias', heb: 'הוֹשֵׁעַ' },
-        { abrev: 'Jl', nome: 'Joel', heb: 'יוֹאֵל' },
-        { abrev: 'Am', nome: 'Amós', heb: 'עָמוֹס' },
-        { abrev: 'Ob', nome: 'Obadias', heb: 'עֹבַדְיָה' },
-        { abrev: 'Jn', nome: 'Jonas', heb: 'יוֹנָה' },
-        { abrev: 'Mq', nome: 'Miqueias', heb: 'מִיכָה' },
-        { abrev: 'Na', nome: 'Naum', heb: 'נַחוּם' },
-        { abrev: 'Hc', nome: 'Habacuque', heb: 'חֲבַקּוּק' },
-        { abrev: 'Sf', nome: 'Sofonias', heb: 'צְפַנְיָה' },
-        { abrev: 'Ag', nome: 'Ageu', heb: 'חַגַּי' },
-        { abrev: 'Zc', nome: 'Zacarias', heb: 'זְכַרְיָה' },
-        { abrev: 'Ml', nome: 'Malaquias', heb: 'מַלְאָכִי' }
+        { abrev: 'Os', nome: 'Oseias', heb: 'הוֹשֵׁעַ', arquivo: 'os', ativo: true },
+        { abrev: 'Jl', nome: 'Joel', heb: 'יוֹאֵל', arquivo: 'jl', ativo: true },
+        { abrev: 'Am', nome: 'Amós', heb: 'עָמוֹס', arquivo: 'am', ativo: true },
+        { abrev: 'Ob', nome: 'Obadias', heb: 'עֹבַדְיָה', arquivo: 'ob', ativo: true },
+        { abrev: 'Jn', nome: 'Jonas', heb: 'יוֹנָה', arquivo: 'jn', ativo: true },
+        { abrev: 'Mq', nome: 'Miqueias', heb: 'מִיכָה', arquivo: 'mq', ativo: true },
+        { abrev: 'Na', nome: 'Naum', heb: 'נַחוּם', arquivo: 'na', ativo: true },
+        { abrev: 'Hc', nome: 'Habacuque', heb: 'חֲבַקּוּק', arquivo: 'hc', ativo: true },
+        { abrev: 'Sf', nome: 'Sofonias', heb: 'צְפַנְיָה', arquivo: 'sf', ativo: true },
+        { abrev: 'Ag', nome: 'Ageu', heb: 'חַגַּי', arquivo: 'ag', ativo: true },
+        { abrev: 'Zc', nome: 'Zacarias', heb: 'זְכַרְיָה', arquivo: 'zc', ativo: true },
+        { abrev: 'Ml', nome: 'Malaquias', heb: 'מַלְאָכִי', arquivo: 'ml', ativo: true }
       ]}
     ]
   },
@@ -68,3 +68,7 @@ window.CANON = [
     ]
   }
 ];
+
+// Ordem das Bíblias protestantes (de Gênesis a Malaquias), usada na Concordância.
+window.ORDEM_AT = ['Gn','Êx','Lv','Nm','Dt','Js','Jz','Rt','1Sm','2Sm','1Rs','2Rs','1Cr','2Cr','Ed','Ne','Et','Jó','Sl','Pv','Ec','Ct',
+  'Is','Jr','Lm','Ez','Dn','Os','Jl','Am','Ob','Jn','Mq','Na','Hc','Sf','Ag','Zc','Ml'];
