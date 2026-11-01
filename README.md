@@ -1,11 +1,11 @@
-# Bíblia & Exegese — Pentateuco
+# Bíblia & Exegese — Torá e Profetas
 
 Aplicativo web de estudo exegético do Antigo Testamento. Interface no **GitHub Pages**, login e dados do usuário no **Supabase**.
 
 ## O que já funciona
 
 - Login com **GitHub** (via Supabase) ou e-mail e senha.
-- Estante com os 39 livros do AT na ordem da **Bíblia Hebraica** (Torá, Profetas Anteriores, Profetas Posteriores, Os Doze, Escritos). Todo o Pentateuco (Gênesis a Deuteronômio) está aberto. Cada divisão tem a sua cor na estante.
+- Estante com os 39 livros do AT na ordem da **Bíblia Hebraica** (Torá, Profetas Anteriores, Profetas Posteriores, Os Doze, Escritos). A Torá e os Profetas (Gênesis a Malaquias, na ordem hebraica: Josué a 2 Reis, Isaías, Jeremias, Ezequiel e os Doze) estão abertos. Cada divisão tem a sua cor na estante.
 - Livro → **capítulo** → **versículo**, pela versificação portuguesa (Almeida / Bíblia Livre).
 - Tabela por versículo, com uma linha para cada palavra hebraica:
   - **Texto Bíblico**: já vem com a palavra da Bíblia Livre que corresponde a cada termo hebraico (por alinhamento automático), e você pode corrigir. O **+** cria colunas de tradução suas.
@@ -19,13 +19,17 @@ Aplicativo web de estudo exegético do Antigo Testamento. Interface no **GitHub 
 - Citações: na primeira vez, o app pede a obra e a referência completa. Depois disso, a mesma obra só pede **tipo (direta/indireta)** e **página**, e a página entra no fim da referência automaticamente.
 - Seção inferior: **Espírito de Profecia**, **Contexto Histórico** (bloco "Ano" já vem pronto, e você pode criar blocos de Rei, Cidade, Região, Tribo, Profetas ou um título seu, além das citações teóricas), **Mapa** e **Aplicação** (seus comentários homiléticos). Cada item tem botões de editar, excluir e copiar.
 - **Mapa** do recorte Egito–Mesopotâmia em satélite de alta definição. O zoom e a posição ficam salvos em cada versículo. A aba **Elementos** tem localização com nome, texto com cor e tamanho, X (sempre por cima), cidade fortificada com nome, acampamento com nome, seta reta, seta pontilhada e linha pontilhada livre, pincel transparente para destacar regiões, todos com cor. Ferramenta Seleção para editar, mover ou apagar; Limpar tudo; e botão para salvar o mapa como imagem PNG, exatamente no recorte da tela. Tudo fica salvo no versículo.
-- Lápis em cada palavra da coluna Texto Bíblico e no título dela, que pode ser renomeado. O olho nas colunas Hebraico, Strong Hebraico, LXX e Strong Grego recolhe a coluna numa faixa estreita; tocando nela, a coluna volta.
+- **Concordância**: em cada linha, você junta referências (livro, capítulo, versículo ou intervalo). Elas aparecem abreviadas na célula e, na caixa, em ordem de Gênesis a Malaquias com o texto da Bíblia Livre (ou um aviso, se o livro ainda não está no app).
+- A primeira coluna fica congelada ao rolar a tabela. Ao passar o mouse sobre uma citação de comentário ou dicionário, ela aparece completa.
+- Aba **Fotos**: fotos com legenda, salvas em cada versículo (Supabase Storage, bucket privado "fotos").
+- Mapas bíblicos do **Antigo** e do **Novo Testamento** (com cidades, montes, regiões e águas) junto ao satélite e ao relevo. **Salvar mapa** guarda o mapa com nome, posição e zoom exatos; **Buscar mapas** lista os mapas salvos para abrir, apresentar, editar e salvar de novo.
+- Toque em cada palavra da coluna Texto Bíblico para editar e no título dela, que pode ser renomeado. O olho nas colunas Hebraico, Strong Hebraico, LXX e Strong Grego recolhe a coluna numa faixa estreita; tocando nela, a coluna volta.
 - Modo demonstração sem login: `.../?demo=1`. Os dados ficam só no navegador.
 
 ## Como publicar
 
 ### 1. Supabase
-1. Abra **SQL Editor → New query**, cole o conteúdo de `supabase/schema.sql` e clique em **Run**. Rode de novo a cada versão nova: o script só cria o que falta e não apaga dados. A v4 criou as tabelas `mapas` e `preferencias`.
+1. Abra **SQL Editor → New query**, cole o conteúdo de `supabase/schema.sql` e clique em **Run**. Rode de novo a cada versão nova: o script só cria o que falta e não apaga dados. A v4 criou as tabelas `mapas` e `preferencias`; a v7 cria `mapas_salvos`, `fotos` e o bucket de Storage `fotos`.
 2. Em **Authentication → URL Configuration**, coloque em **Site URL** o endereço do seu GitHub Pages (ex.: `https://SEU-USUARIO.github.io/biblia-exegese/`) e adicione esse mesmo endereço em **Redirect URLs**.
 3. Para entrar com GitHub:
    - No GitHub: **Settings → Developer settings → OAuth Apps → New OAuth App**.
@@ -43,8 +47,9 @@ Aplicativo web de estudo exegético do Antigo Testamento. Interface no **GitHub 
 - Septuaginta: Rahlfs 1935, projeto CenterBLC/LXX (MIT). Nos trechos que a LXX põe em outra ordem (Êx 35-40, Nm 1, 6, 10, 26, Dt 5 etc.), a correspondência vem da tabela TVTMS do STEPBible (CC BY) e é conferida pelo alinhamento.
 - Versículos da Bíblia Livre que faltavam no corpus eBible (Gn 31:55, Êx 8:29-32, Êx 22:31, Lv 6:24-30, Nm 16:36-50, Nm 29:40, Dt 12:32, 22:30, 29:29): `tools/blivre_faltantes.tsv`, do PorBLivre (scrollmapper/bible_databases).
 - Léxico Strong (1890), hebraico e grego: domínio público.
+- Lugares dos mapas bíblicos: OpenBible.info, Bible Geocoding Data (CC BY 4.0).
 - Mapa: Leaflet 1.9.4 (BSD) e GSAP 3.12.5 em `vendor/`. Imagens © Esri, Maxar, Earthstar Geographics, e NASA Blue Marble (domínio público).
 
 ## Para gerar os próximos livros
-O arquivo `tools/build_data.py` (requer `text-fabric`, `spacy`, `simplemma` e o modelo `pt_core_news_sm`) gera `data/livros/<abrev>.json`. A pasta de fontes precisa ter também `tvtms.txt` (TVTMS do STEPBible). Exemplo: `python3 tools/build_data.py <fontes> data/livros Josh`.
+O arquivo `tools/build_data.py` (requer `text-fabric`, `spacy`, `simplemma` e o modelo `pt_core_news_sm`) gera `data/livros/<abrev>.json`. A pasta de fontes precisa ter também `tvtms.txt` (TVTMS do STEPBible). Exemplo: `python3 tools/build_data.py <fontes> data/livros Ruth`. Depois rode `python3 tools/gerar_textos.py data/livros data/texto` (textos leves usados pela Concordância).
 Antes, ajuste em `js/livros.js` o `arquivo` e o `ativo: true` do livro. Para cada livro novo, confira os versículos que faltam no corpus (sobras de capítulo) e acrescente-os em `tools/blivre_faltantes.tsv`.
