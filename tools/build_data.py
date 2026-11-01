@@ -30,7 +30,10 @@ VREF_NAME = {'Gen':'GEN','Exod':'EXO','Lev':'LEV','Num':'NUM','Deut':'DEU','Josh
   'Job':'JOB','Ps':'PSA','Prov':'PRO','Eccl':'ECC','Song':'SNG','Isa':'ISA','Jer':'JER','Lam':'LAM','Ezek':'EZK',
   'Dan':'DAN','Hos':'HOS','Joel':'JOL','Amos':'AMO','Obad':'OBA','Jonah':'JON','Mic':'MIC','Nah':'NAM','Hab':'HAB',
   'Zeph':'ZEP','Hag':'HAG','Zech':'ZEC','Mal':'MAL'}
-APP_ABBR = {'Gen':'Gn','Exod':'Ex','Lev':'Lv','Num':'Nm','Deut':'Dt'}
+APP_ABBR = {'Gen':'Gn','Exod':'Ex','Lev':'Lv','Num':'Nm','Deut':'Dt',
+  'Josh':'Js','Judg':'Jz','1Sam':'1Sm','2Sam':'2Sm','1Kgs':'1Rs','2Kgs':'2Rs','Isa':'Is','Jer':'Jr','Ezek':'Ez',
+  'Hos':'Os','Joel':'Jl','Amos':'Am','Obad':'Ob','Jonah':'Jn','Mic':'Mq','Nah':'Na','Hab':'Hc','Zeph':'Sf',
+  'Hag':'Ag','Zech':'Zc','Mal':'Ml'}
 
 # ---------------------------------------------------------------- hebraico
 NS = {'o': 'http://www.bibletechnologies.net/2003/OSIS/namespace'}
@@ -285,6 +288,8 @@ for w, k in re.findall(r'wlc="([^"]+)" kjv="([^"]+)"', vm):
     wb, wc, wn = w.split('.'); kb, kc, kn = k.split('.')
     if not (wn.isdigit() and kn.isdigit() and wc.isdigit() and kc.isdigit()): continue
     KJV2WLC[(kb, int(kc), int(kn))] = (int(wc), int(wn))
+# Is 64:1 (português) é a segunda metade de 63:19 no hebraico; o VerseMap não traz esse caso
+KJV2WLC.setdefault(('Isa', 64, 1), (63, 19))
 os.makedirs(OUT, exist_ok=True)
 
 # ---------------------------------------------------------------- alinhamento por morfemas (Modelo 1 nas duas direções)
@@ -459,25 +464,35 @@ def _tvtms_refs(expr):
     return out
 
 def carregar_tvtms(path):
-    TV = {'Gen': 'Gen', 'Exo': 'Exod', 'Lev': 'Lev', 'Num': 'Num', 'Deu': 'Deut', 'Jos': 'Josh', 'Jdg': 'Judg', 'Rut': 'Ruth'}
+    TV = {'Gen': 'Gen', 'Exo': 'Exod', 'Lev': 'Lev', 'Num': 'Num', 'Deu': 'Deut', 'Jos': 'Josh', 'Jdg': 'Judg', 'Rut': 'Ruth',
+          '1Sa': '1Sam', '2Sa': '2Sam', '1Ki': '1Kgs', '2Ki': '2Kgs', 'Isa': 'Isa', 'Jer': 'Jer', 'Ezk': 'Ezek',
+          'Hos': 'Hos', 'Jol': 'Joel', 'Amo': 'Amos', 'Oba': 'Obad', 'Jon': 'Jonah', 'Mic': 'Mic', 'Nam': 'Nah',
+          'Hab': 'Hab', 'Zep': 'Zeph', 'Hag': 'Hag', 'Zec': 'Zech', 'Mal': 'Mal'}
     M = {}
     if not os.path.exists(path): return M
     linhas = open(path, encoding='utf-8-sig').read().split('\n')
     i0 = next(i for i, l in enumerate(linhas) if l.startswith('#DataStart(Condensed)'))
     i1 = next(i for i, l in enumerate(linhas) if l.startswith('#DataEnd(Condensed)'))
-    book = gi = None
+    # M[(livro, cap, vers)] = {coluna grega: [versículos da LXX]} — cada coluna grega (Rahlfs, Brenton,
+    # NETS...) vira um candidato; o alinhamento escolhe a que corresponde ao texto do CenterBLC.
+    book = None; gis = []
     for l in linhas[i0:i1]:
         c = l.rstrip('\t').split('\t')
         if l.startswith('$'):
-            book = TV.get(c[0][1:4]); gi = next((k for k, x in enumerate(c) if x.strip().startswith('Greek')), None); continue
-        if not book or gi is None or len(c) <= gi or c[0].startswith('TEST') or not c[1].strip(): continue
-        k, g = _tvtms_refs(c[1]), _tvtms_refs(c[gi])
-        if not k or g is None: continue
-        k, g = list(dict.fromkeys(k)), list(dict.fromkeys(g))
-        if len(k) == len(g):
-            for x, y in zip(k, g): M.setdefault((book,) + x, []).append(y)
-        else:
-            for x in k: M.setdefault((book,) + x, []).extend(g)
+            book = TV.get(c[0][1:4]); gis = [k for k, x in enumerate(c) if x.strip().startswith('Greek')]; continue
+        if not book or not gis or c[0].startswith('TEST') or len(c) < 2 or not c[1].strip(): continue
+        k = _tvtms_refs(c[1])
+        if not k: continue
+        k = list(dict.fromkeys(k))
+        for gi in gis:
+            if len(c) <= gi: continue
+            g = _tvtms_refs(c[gi])
+            if g is None: continue
+            g = list(dict.fromkeys(g))
+            if len(k) == len(g):
+                for x, y in zip(k, g): M.setdefault((book,) + x, {}).setdefault(gi, []).append(y)
+            else:
+                for x in k: M.setdefault((book,) + x, {}).setdefault(gi, []).extend(g)
     return M
 TVTMS = carregar_tvtms(os.path.join(SRC, 'tvtms.txt'))
 
@@ -493,17 +508,44 @@ def lxx_do_versiculo(b, kjv, hk, hw):
     lb = LXX_NAME.get(b)
     if not lb or lb not in LXX: return [], []
     G = LXX[lb]
-    cands = [[hk]]
+    # candidatos: (versículos, bônus). O versículo de mesmo número tem um pequeno bônus; os da tabela
+    # TVTMS, um bônus maior. Os vizinhos (±1, ±2) entram com desconto: só vencem quando o texto
+    # corresponde claramente melhor (ex.: Ml 4:5 = LXX 3:22).
+    cands = [([hk], 0.03)]
+    viz = lambda k, d: [(k[0], k[1] + x) for x in range(-d, d + 1) if x and k[1] + x > 0]
+    if hk in G:   # vizinhos só quando a LXX tem o versículo (se não tem, é omissão da LXX)
+        for k in viz(hk, 1): cands.append(([k], -0.12))
     # onde a numeração hebraica já difere da portuguesa (Êx 8, Lv 6, Nm 17, Dt 13, 23...), o
     # CenterBLC segue a hebraica; a TVTMS só entra nos trechos que a LXX reordena.
     t = TVTMS.get((b,) + kjv) if hk == kjv else None
-    if t: cands.append(list(dict.fromkeys(t)))
+    for g in (t or {}).values():
+        g = list(dict.fromkeys(g))
+        if not g: continue
+        cands.append((g, 0.08))
+        if len(g) == 1:
+            for k in viz(g[0], 2): cands.append(([k], -0.12))
+    bonus_de = {}   # o mesmo candidato pode vir por mais de um caminho: vale o maior bônus
+    for cand, bonus in cands:
+        bonus_de[tuple(cand)] = max(bonus, bonus_de.get(tuple(cand), -1))
     melhor, nm = None, -1
-    for cand in cands:
+    for cand, bonus in bonus_de.items():
+        cand = list(cand)
         gw = [w for k in cand for w in G.get(k, [])]
         if not gw: continue
-        sc = nota_lxx(hw, gw) + (0 if cand == [hk] else 0.08)   # a tabela TVTMS tem a preferência; o alinhamento só a corrige quando ela não confere
+        sc = nota_lxx(hw, gw) + bonus
         if sc > nm: melhor, nm = cand, sc
+    # o versículo de mesmo número existe mas não corresponde (trecho deslocado, ex.: Jr 46-51 = LXX 26-31,
+    # Ml 4:4 = LXX 3:24): procura no livro inteiro uma correspondência clara e única
+    if hk in G and nm < 0.2 and len({tk for w in hw for tk in src_tokens(w) if tk.startswith('H')}) >= 4:
+        # janela: perto dos capítulos que a TVTMS indica (±2) ou, sem tabela, perto do próprio capítulo (±3);
+        # assim não se confunde com trechos paralelos distantes (Êx 25-31 × 35-40, Jr 39 × 52)
+        caps = {k[0] for g in (t or {}).values() for k in g} or {hk[0]}
+        larg = 2 if t else 3
+        perto = [k for k in G if any(abs(k[0] - c) <= larg for c in caps)]
+        notas = sorted(((nota_lxx(hw, G[k]), k) for k in perto), reverse=True)
+        (s1, k1), (s2, _) = (notas[0] if notas else (0, None)), (notas[1] if len(notas) > 1 else (0, None))
+        if s1 >= 0.4 and s1 > nm + 0.25 and s1 > s2 + 0.12:
+            melhor, nm = [k1], s1
     if not melhor: return [], []
     return [w for k in melhor for w in G.get(k, [])], melhor
 
