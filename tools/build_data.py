@@ -24,7 +24,8 @@ OSHB_BOOKS = ['Gen','Exod','Lev','Num','Deut','Josh','Judg','1Sam','2Sam','1Kgs'
   'Hos','Joel','Amos','Obad','Jonah','Mic','Nah','Hab','Zeph','Hag','Zech','Mal','Ps','Prov','Job','Song',
   'Ruth','Lam','Eccl','Esth','Dan','Ezra','Neh','1Chr','2Chr']
 LXX_NAME = {b: b for b in OSHB_BOOKS}
-LXX_NAME.update({'Eccl': 'Qoh', 'Song': 'Cant', 'Dan': 'DanTh', 'Ezra': None, 'Neh': None})
+LXX_NAME.update({'Eccl': 'Qoh', 'Song': 'Cant', 'Dan': 'DanTh', 'Ezra': '2Esdr', 'Neh': '2Esdr'})
+LXX_CAP = {'Neh': 10}   # na LXX, Neemias é 2 Esdras 11-23
 VREF_NAME = {'Gen':'GEN','Exod':'EXO','Lev':'LEV','Num':'NUM','Deut':'DEU','Josh':'JOS','Judg':'JDG','Ruth':'RUT',
   '1Sam':'1SA','2Sam':'2SA','1Kgs':'1KI','2Kgs':'2KI','1Chr':'1CH','2Chr':'2CH','Ezra':'EZR','Neh':'NEH','Esth':'EST',
   'Job':'JOB','Ps':'PSA','Prov':'PRO','Eccl':'ECC','Song':'SNG','Isa':'ISA','Jer':'JER','Lam':'LAM','Ezek':'EZK',
@@ -33,7 +34,10 @@ VREF_NAME = {'Gen':'GEN','Exod':'EXO','Lev':'LEV','Num':'NUM','Deut':'DEU','Josh
 APP_ABBR = {'Gen':'Gn','Exod':'Ex','Lev':'Lv','Num':'Nm','Deut':'Dt',
   'Josh':'Js','Judg':'Jz','1Sam':'1Sm','2Sam':'2Sm','1Kgs':'1Rs','2Kgs':'2Rs','Isa':'Is','Jer':'Jr','Ezek':'Ez',
   'Hos':'Os','Joel':'Jl','Amos':'Am','Obad':'Ob','Jonah':'Jn','Mic':'Mq','Nah':'Na','Hab':'Hc','Zeph':'Sf',
-  'Hag':'Ag','Zech':'Zc','Mal':'Ml'}
+  'Hag':'Ag','Zech':'Zc','Mal':'Ml',
+  'Ps':'Sl','Prov':'Pv','Job':'Jó','Song':'Ct','Ruth':'Rt','Lam':'Lm','Eccl':'Ec','Esth':'Et','Dan':'Dn',
+  'Ezra':'Ed','Neh':'Ne','1Chr':'1Cr','2Chr':'2Cr'}
+ARQUIVO = {'Job': 'job'}   # nome do arquivo sem acento
 
 # ---------------------------------------------------------------- hebraico
 NS = {'o': 'http://www.bibletechnologies.net/2003/OSIS/namespace'}
@@ -290,6 +294,10 @@ for w, k in re.findall(r'wlc="([^"]+)" kjv="([^"]+)"', vm):
     KJV2WLC[(kb, int(kc), int(kn))] = (int(wc), int(wn))
 # Is 64:1 (português) é a segunda metade de 63:19 no hebraico; o VerseMap não traz esse caso
 KJV2WLC.setdefault(('Isa', 64, 1), (63, 19))
+KJV2WLC[('Ps', 13, 5)] = (13, 6)        # Sl 13:5-6 = hebraico 13:6
+KJV2WLC[('Neh', 7, 68)] = None          # Ne 7:68 não está no Códice de Leningrado
+# títulos dos salmos: versículos do hebraico que não correspondem a nenhum versículo português
+TITULOS = defaultdict(list)             # cap -> [versículos hebraicos do título]
 os.makedirs(OUT, exist_ok=True)
 
 # ---------------------------------------------------------------- alinhamento por morfemas (Modelo 1 nas duas direções)
@@ -448,6 +456,7 @@ def _tvtms_refs(expr):
         if not m: return None
         expr = m.group(1)
     expr = re.sub(r'\[.*?\]', '', expr).strip()
+    expr = re.sub(r':Title\b', ':0', expr)   # título do salmo = versículo 0
     out, ch = [], None
     for part in re.split(r'[;,]', expr):
         part = re.sub(r'^[A-Za-z0-9]+\.', '', part.strip())
@@ -464,7 +473,8 @@ def _tvtms_refs(expr):
     return out
 
 def carregar_tvtms(path):
-    TV = {'Gen': 'Gen', 'Exo': 'Exod', 'Lev': 'Lev', 'Num': 'Num', 'Deu': 'Deut', 'Jos': 'Josh', 'Jdg': 'Judg', 'Rut': 'Ruth',
+    TV = {'Psa': 'Ps', 'Pro': 'Prov', 'Job': 'Job', 'Sng': 'Song', 'Lam': 'Lam', 'Ecc': 'Eccl', 'Est': 'Esth',
+          'Dan': 'Dan', 'Ezr': 'Ezra', 'Neh': 'Neh', '1Ch': '1Chr', '2Ch': '2Chr', 'Gen': 'Gen', 'Exo': 'Exod', 'Lev': 'Lev', 'Num': 'Num', 'Deu': 'Deut', 'Jos': 'Josh', 'Jdg': 'Judg', 'Rut': 'Ruth',
           '1Sa': '1Sam', '2Sa': '2Sam', '1Ki': '1Kgs', '2Ki': '2Kgs', 'Isa': 'Isa', 'Jer': 'Jer', 'Ezk': 'Ezek',
           'Hos': 'Hos', 'Jol': 'Joel', 'Amo': 'Amos', 'Oba': 'Obad', 'Jon': 'Jonah', 'Mic': 'Mic', 'Nam': 'Nah',
           'Hab': 'Hab', 'Zep': 'Zeph', 'Hag': 'Hag', 'Zec': 'Zech', 'Mal': 'Mal'}
@@ -480,6 +490,8 @@ def carregar_tvtms(path):
         c = l.rstrip('\t').split('\t')
         if l.startswith('$'):
             book = TV.get(c[0][1:4]); gis = [k for k, x in enumerate(c) if x.strip().startswith('Greek')]; continue
+        if c[0].startswith('BIBLES'):      # nos Salmos, os nomes das colunas vêm numa linha própria
+            gis = [k for k, x in enumerate(c) if x.strip().startswith('Greek')]; continue
         if not book or not gis or c[0].startswith('TEST') or len(c) < 2 or not c[1].strip(): continue
         k = _tvtms_refs(c[1])
         if not k: continue
@@ -495,6 +507,9 @@ def carregar_tvtms(path):
                 for x in k: M.setdefault((book,) + x, {}).setdefault(gi, []).extend(g)
     return M
 TVTMS = carregar_tvtms(os.path.join(SRC, 'tvtms.txt'))
+# casos conferidos à mão: Dn 4:1-3 (hebraico 3:31-33) é 4:1-3 na LXX de Teodocião (3:24-90 são os acréscimos)
+LXX_FIXO = {('Dan', 4, 1): [(4, 1)], ('Dan', 4, 2): [(4, 2)], ('Dan', 4, 3): [(4, 3)]}
+TVTMS_SEMPRE = {'Ps', 'Prov', 'Job', 'Song', 'Ruth', 'Lam', 'Eccl', 'Esth', 'Dan', 'Ezra', 'Neh', '1Chr', '2Chr'}
 
 def nota_lxx(hw, gw):
     hs = {tk for w in hw for tk in src_tokens(w) if tk.startswith('H')}
@@ -508,6 +523,9 @@ def lxx_do_versiculo(b, kjv, hk, hw):
     lb = LXX_NAME.get(b)
     if not lb or lb not in LXX: return [], []
     G = LXX[lb]
+    off = LXX_CAP.get(b, 0)
+    if hk is None: return [], []
+    hk = (hk[0] + off, hk[1])
     # candidatos: (versículos, bônus). O versículo de mesmo número tem um pequeno bônus; os da tabela
     # TVTMS, um bônus maior. Os vizinhos (±1, ±2) entram com desconto: só vencem quando o texto
     # corresponde claramente melhor (ex.: Ml 4:5 = LXX 3:22).
@@ -517,11 +535,16 @@ def lxx_do_versiculo(b, kjv, hk, hw):
         for k in viz(hk, 1): cands.append(([k], -0.12))
     # onde a numeração hebraica já difere da portuguesa (Êx 8, Lv 6, Nm 17, Dt 13, 23...), o
     # CenterBLC segue a hebraica; a TVTMS só entra nos trechos que a LXX reordena.
-    t = TVTMS.get((b,) + kjv) if hk == kjv else None
+    # Nos Escritos (Salmos, Daniel, Neemias...), a numeração muda quase sempre; ali a TVTMS entra sempre,
+    # mas sem bônus: só vence quando o texto corresponde.
+    mesmo = hk == (kjv[0] + off, kjv[1])
+    t = TVTMS.get((b,) + kjv) if (mesmo or b in TVTMS_SEMPRE) else None
+    if (b,) + kjv in LXX_FIXO: cands.append((LXX_FIXO[(b,) + kjv], 0.5))
     for g in (t or {}).values():
         g = list(dict.fromkeys(g))
         if not g: continue
-        cands.append((g, 0.08))
+        cands.append((g, 0.08 if mesmo else 0))
+        if off: cands.append(([(k[0] + off, k[1]) for k in g], 0))
         if len(g) == 1:
             for k in viz(g[0], 2): cands.append(([k], -0.12))
     bonus_de = {}   # o mesmo candidato pode vir por mais de um caminho: vale o maior bônus
@@ -641,7 +664,7 @@ for b in WANT:
     verses = {}
     for (c, n), txt in sorted(PT[code].items()):
         hk = KJV2WLC.get((b, c, n), (c, n))
-        hw = vs.get(hk, [])
+        hw = vs.get(hk, []) if hk else []
         gw, gks = lxx_do_versiculo(b, (c, n), hk, hw) if hw else ([], [])
         toks_v = PTTOK.get((code, c, n), [])
         glinhas, gprinc = grego_por_linha(hw, gw) if (hw and gw) else ([[] for _ in hw], [-1] * len(hw))
@@ -668,9 +691,11 @@ for b in WANT:
                             combinar(s, MEAN_G[k], extras=False), traducoes(MEAN_G[k])]
             g_rows.append([g['g'], g['tr'], g['lex'], s, greek_morph(g['m'])])
         verses[f'{c}:{n}'] = {'pt': txt, 'he': rows, 'gr': g_rows}
-        if hk != (c, n):
+        if hk is None:
+            verses[f'{c}:{n}']['heb_ref'] = '—'
+        elif hk != (c, n):
             verses[f'{c}:{n}']['heb_ref'] = f'{hk[0]}:{hk[1]}'
-        if gks and gks != [hk]:
+        if gks and hk and gks != [(hk[0] + LXX_CAP.get(b, 0), hk[1])]:
             verses[f'{c}:{n}']['lxx_ref'] = '; '.join(f'{x}:{y}' for x, y in gks)
     caps = defaultdict(int)
     for (c, n) in PT[code]:
@@ -680,7 +705,38 @@ for b in WANT:
             'colunas_he': ['texto','translit','strong','raiz','morfologia','ocorr_livro','ocorr_at','lxx_indices','pt','lxx_principal'],
             'lex_campos': ['lema','translit','def_strong','kjv','traducoes (Strong em PT + Bíblia Livre)','traducoes so na Biblia Livre'],
             'colunas_gr': ['texto','translit','lema','strong','morfologia']}
-    path = os.path.join(OUT, APP_ABBR.get(b, b).lower() + '.json')
+    # títulos dos salmos (o hebraico numera o título como v. 1; a Bíblia Livre não o traz): entram como "c:0"
+    if b == 'Ps':
+        usados = {KJV2WLC.get((b, c, n), (c, n)) for (c, n) in PT[code]}
+        for (c, n) in sorted(vs):
+            if (c, n) not in usados: TITULOS[c].append(n)
+        for c, ns in sorted(TITULOS.items()):
+            hw = [w for n in ns for w in vs[(c, n)]]
+            gw, gks = lxx_do_versiculo(b, (c, 0), (c, ns[0]), hw)
+            glinhas = grego_por_linha(hw, gw)[0] if gw else [[] for _ in hw]
+            gprinc = grego_por_linha(hw, gw)[1] if gw else [-1] * len(hw)
+            rows = []
+            for i, w in enumerate(hw):
+                hh = main_strong(w['lemma']); r = root_of(hh) if hh else None
+                for x in (hh, r):
+                    if x and x in HEB and x not in lex_h:
+                        e = HEB[x]
+                        lex_h[x] = [e.get('lemma',''), e.get('xlit',''), e.get('strongs_def',''), e.get('kjv_def',''),
+                                    combinar(x, MEAN_H[x]), traducoes(MEAN_H[x])]
+                rows.append([w['t'].replace('/', ''), translit(w['t']), hh or '', r or '', heb_morph(w['morph']),
+                             count_book[b].get(hh, 0), count_ot.get(hh, 0), glinhas[i], '', gprinc[i]])
+            g_rows = []
+            for g in gw:
+                s_ = g['s']; k_ = s_ or ('L:' + g['lex'])
+                if k_ not in lex_g:
+                    e = GRK.get(s_, {})
+                    lex_g[k_] = [e.get('lemma', g['lex']), e.get('translit',''), e.get('strongs_def',''), e.get('kjv_def',''),
+                                 combinar(s_, MEAN_G[k_], extras=False), traducoes(MEAN_G[k_])]
+                g_rows.append([g['g'], g['tr'], g['lex'], s_, greek_morph(g['m'])])
+            verses[f'{c}:0'] = {'pt': '', 'titulo': True, 'he': rows, 'gr': g_rows,
+                                'heb_ref': f'{c}:{ns[0]}' + (f'-{ns[-1]}' if len(ns) > 1 else '')}
+            if gks: verses[f'{c}:0']['lxx_ref'] = '; '.join(f'{x}:{y}' for x, y in gks)
+    path = os.path.join(OUT, ARQUIVO.get(b, APP_ABBR.get(b, b).lower()) + '.json')
     json.dump(data, open(path, 'w', encoding='utf-8'), ensure_ascii=False, separators=(',', ':'))
     print('ok', path, os.path.getsize(path) // 1024, 'KB', len(verses), 'versículos')
 

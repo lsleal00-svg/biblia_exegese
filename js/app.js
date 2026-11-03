@@ -128,7 +128,8 @@
   // ------------------------------------------------------------------ roteamento (#/gn/1/1)
   function rotaAtual() {
     const p = location.hash.replace(/^#\/?/, '').split('/').filter(Boolean);
-    if (p[0] && livroPorArquivo(p[0])) return { livro: p[0], cap: +p[1] || 0, ver: +p[2] || 0 };
+    // versículo 0 = título do salmo
+    if (p[0] && livroPorArquivo(p[0])) return { livro: p[0], cap: +p[1] || 0, ver: /^\d+$/.test(p[2] || '') ? +p[2] : null };
     return { livro: null };
   }
   const ir = (hash) => { if (location.hash !== hash) location.hash = hash; else render(); };
@@ -202,7 +203,7 @@
     if (!r.livro) return telaEstante();
     const livro = livroPorArquivo(r.livro);
     if (!livro.ativo) { ir('#/'); return; }
-    if (!r.cap || !r.ver) { telaEstante(); return seletor(livro, r.cap); }
+    if (!r.cap || r.ver == null) { telaEstante(); return seletor(livro, r.cap); }
     return telaExegese(livro, r.cap, r.ver);
   }
 
@@ -257,8 +258,19 @@
 
   // diferenças de numeração entre a Bíblia Livre, o texto hebraico e a LXX
   function notaVersificacao(livro, v) {
+    const base = notaVersificacaoBase(livro, v);
+    // na LXX, Esdras e Neemias formam o livro de 2 Esdras (Neemias = capítulos 11 a 23)
+    if ((livro.abrev === 'Ed' || livro.abrev === 'Ne') && v.gr && v.gr.length && !v.lxx_ref) {
+      const [c, n] = (v.heb_ref && v.heb_ref !== '—' ? v.heb_ref : `${ctx.cap}:${ctx.ver}`).split(':').map(Number);
+      return base + `<p class="nota-vers">Na LXX, ${livro.abrev === 'Ne' ? 'Neemias' : 'Esdras'} faz parte de 2 Esdras: aqui é 2 Esdras ${c + (livro.abrev === 'Ne' ? 10 : 0)}:${n}.</p>`;
+    }
+    return base;
+  }
+  function notaVersificacaoBase(livro, v) {
     const ab = h(livro.abrev);
     const lxx = v.lxx_ref ? v.lxx_ref.split('; ').map(r => `${ab} ${h(r)}`).join(' e ') : null;
+    if (v.titulo) return `<p class="nota-vers">No texto hebraico, o título é ${ab} ${h(v.heb_ref)}${lxx ? `; na LXX (Rahlfs), ${lxx}` : ''}.</p>`;
+    if (v.heb_ref === '—') return `<p class="nota-vers">Este versículo não está no texto hebraico (Códice de Leningrado).</p>`;
     if (v.heb_ref && !lxx) return `<p class="nota-vers">No texto hebraico e na LXX este versículo é ${ab} ${h(v.heb_ref)}.</p>`;
     if (v.heb_ref && lxx) return `<p class="nota-vers">No texto hebraico este versículo é ${ab} ${h(v.heb_ref)}; na LXX (Rahlfs), ${lxx}.</p>`;
     if (lxx) return `<p class="nota-vers">A LXX (Rahlfs) põe este trecho em outra ordem: aqui aparece ${lxx}.</p>`;
@@ -300,7 +312,7 @@
     const tes = store.get('testamento') === 'nt' ? 'nt' : 'at';
     const intro = tes === 'at'
       ? `<h1>Antigo Testamento</h1>
-        <p>Na ordem da Bíblia Hebraica — Torá, Profetas e Escritos. Nesta etapa, a <strong>Torá</strong> e os <strong>Profetas</strong> estão disponíveis; os Escritos vêm a seguir.</p>`
+        <p>Na ordem da Bíblia Hebraica — Torá, Profetas e Escritos. Todos os livros do Antigo Testamento estão disponíveis.</p>`
       : `<h1>Novo Testamento</h1>
         <p>Na ordem das Bíblias tradicionais. Os livros já podem ser usados nas referências da Concordância; os textos vêm nas próximas etapas.</p>`;
     $app.innerHTML = cabecalho() + `
@@ -351,7 +363,7 @@
     const mostrarVers = (c) => {
       box.innerHTML = `<p class="seletor-passo"><button class="link" data-voltar>${I.left} Capítulos</button>
         ${h(livro.nome)} ${c} — escolha o <strong>versículo</strong></p>
-        <div class="grade">${Array.from({ length: caps[c - 1] }, (_, i) => `<button class="num" data-v="${i + 1}">${i + 1}</button>`).join('')}</div>`;
+        <div class="grade">${dados.versiculos[`${c}:0`] ? '<button class="num num-titulo" data-v="0" title="Título do salmo">Título</button>' : ''}${Array.from({ length: caps[c - 1] }, (_, i) => `<button class="num" data-v="${i + 1}">${i + 1}</button>`).join('')}</div>`;
       box.querySelector('[data-voltar]').onclick = mostrarCaps;
       box.querySelectorAll('[data-v]').forEach(b => b.onclick = () => { m.fechar(); ir(`#/${livro.arquivo}/${c}/${b.dataset.v}`); });
     };
@@ -376,9 +388,10 @@
 
   function vizinho(delta) {
     const { dados, cap, ver } = ctx;
+    const inicio = (c) => dados.versiculos[`${c}:0`] ? 0 : 1;   // salmos com título começam no "versículo 0"
     let c = cap, v = ver + delta;
-    if (v < 1) { c -= 1; if (c < 1) return null; v = dados.capitulos[c - 1]; }
-    else if (v > dados.capitulos[c - 1]) { c += 1; v = 1; if (c > dados.capitulos.length) return null; }
+    if (v < inicio(c)) { c -= 1; if (c < 1) return null; v = dados.capitulos[c - 1]; }
+    else if (v > dados.capitulos[c - 1]) { c += 1; if (c > dados.capitulos.length) return null; v = inicio(c); }
     return `#/${ctx.livro.arquivo}/${c}/${v}`;
   }
 
@@ -392,11 +405,12 @@
     <main class="exegese">
       <div class="ref-barra">
         <a class="icone" ${ant ? `href="${ant}"` : 'aria-disabled="true"'} aria-label="Versículo anterior">${I.left}</a>
-        <button class="ref-titulo" data-acao="trocar" title="Escolher capítulo e versículo">${h(livro.nome)} ${cap}:${ver}</button>
+        <button class="ref-titulo" data-acao="trocar" title="Escolher capítulo e versículo">${h(livro.nome)} ${cap}${v.titulo ? ' — título' : ':' + ver}</button>
         <a class="icone" ${prox ? `href="${prox}"` : 'aria-disabled="true"'} aria-label="Próximo versículo">${I.right}</a>
       </div>
       <section class="verso">
-        <p class="verso-pt">${h(v.pt)} <span class="sigla">BLIVRE</span></p>
+        ${v.titulo ? '<p class="verso-pt verso-titulo">Título do salmo. <span class="dica">A Bíblia Livre não numera o título; no hebraico ele é o primeiro versículo.</span></p>'
+          : `<p class="verso-pt">${h(v.pt)} <span class="sigla">BLIVRE</span></p>`}
         <div class="verso-originais ${S.mostrarOriginais ? '' : 'oculto'}">
           <p class="verso-he" lang="he" dir="rtl">${h(hebVerso)}</p>
           <p class="verso-gr" lang="grc">${h(grVerso)} <span class="sigla">LXX</span></p>

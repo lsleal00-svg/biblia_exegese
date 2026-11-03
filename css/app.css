@@ -770,3 +770,7 @@ body.pode-instalar .icone[data-acao="instalar"] { display: inline-grid !importan
 @media (hover: hover) and (pointer: fine) { .testamentos button:not(.ativa):hover { background: rgba(36,24,13,.06); color: var(--tinta); } }
 @media (max-width: 560px) { .testamentos { display: grid; } .testamentos button { padding: 10px 8px; } }
 .livro-heb[lang="grc"] { font-family: 'Noto Serif', Georgia, serif; font-size: 12px; }
+
+.num-titulo { grid-column: span 2; font-size: 13px; font-weight: 700; }
+.verso-titulo { font-style: italic; }
+.verso-titulo .dica { display: block; font-style: normal; font-size: 13px; margin-top: 4px; }

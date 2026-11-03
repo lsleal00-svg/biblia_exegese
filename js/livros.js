@@ -47,23 +47,23 @@ window.CANON = [
     id: 'ketuvim', testamento: 'at', nome: 'Ketuvim', hebraico: 'כְּתוּבִים', subtitulo: 'Os Escritos', cor: 'ketuvim',
     grupos: [
       { titulo: 'Livros poéticos', cor: 'poeticos', livros: [
-        { abrev: 'Sl', nome: 'Salmos', heb: 'תְּהִלִּים' },
-        { abrev: 'Pv', nome: 'Provérbios', heb: 'מִשְׁלֵי' },
-        { abrev: 'Jó', nome: 'Jó', heb: 'אִיּוֹב' }
+        { abrev: 'Sl', nome: 'Salmos', heb: 'תְּהִלִּים', arquivo: 'sl', ativo: true },
+        { abrev: 'Pv', nome: 'Provérbios', heb: 'מִשְׁלֵי', arquivo: 'pv', ativo: true },
+        { abrev: 'Jó', nome: 'Jó', heb: 'אִיּוֹב', arquivo: 'job', ativo: true }
       ]},
       { titulo: 'Cinco Rolos (Megillot)', cor: 'megillot', livros: [
-        { abrev: 'Ct', nome: 'Cântico dos Cânticos', heb: 'שִׁיר הַשִּׁירִים' },
-        { abrev: 'Rt', nome: 'Rute', heb: 'רוּת' },
-        { abrev: 'Lm', nome: 'Lamentações', heb: 'אֵיכָה' },
-        { abrev: 'Ec', nome: 'Eclesiastes', heb: 'קֹהֶלֶת' },
-        { abrev: 'Et', nome: 'Ester', heb: 'אֶסְתֵּר' }
+        { abrev: 'Ct', nome: 'Cântico dos Cânticos', heb: 'שִׁיר הַשִּׁירִים', arquivo: 'ct', ativo: true },
+        { abrev: 'Rt', nome: 'Rute', heb: 'רוּת', arquivo: 'rt', ativo: true },
+        { abrev: 'Lm', nome: 'Lamentações', heb: 'אֵיכָה', arquivo: 'lm', ativo: true },
+        { abrev: 'Ec', nome: 'Eclesiastes', heb: 'קֹהֶלֶת', arquivo: 'ec', ativo: true },
+        { abrev: 'Et', nome: 'Ester', heb: 'אֶסְתֵּר', arquivo: 'et', ativo: true }
       ]},
       { titulo: 'Demais Escritos', cor: 'escritos', livros: [
-        { abrev: 'Dn', nome: 'Daniel', heb: 'דָּנִיֵּאל' },
-        { abrev: 'Ed', nome: 'Esdras', heb: 'עֶזְרָא' },
-        { abrev: 'Ne', nome: 'Neemias', heb: 'נְחֶמְיָה' },
-        { abrev: '1Cr', nome: '1 Crônicas', heb: 'דִּבְרֵי הַיָּמִים א' },
-        { abrev: '2Cr', nome: '2 Crônicas', heb: 'דִּבְרֵי הַיָּמִים ב' }
+        { abrev: 'Dn', nome: 'Daniel', heb: 'דָּנִיֵּאל', arquivo: 'dn', ativo: true },
+        { abrev: 'Ed', nome: 'Esdras', heb: 'עֶזְרָא', arquivo: 'ed', ativo: true },
+        { abrev: 'Ne', nome: 'Neemias', heb: 'נְחֶמְיָה', arquivo: 'ne', ativo: true },
+        { abrev: '1Cr', nome: '1 Crônicas', heb: 'דִּבְרֵי הַיָּמִים א', arquivo: '1cr', ativo: true },
+        { abrev: '2Cr', nome: '2 Crônicas', heb: 'דִּבְרֵי הַיָּמִים ב', arquivo: '2cr', ativo: true }
       ]}
     ]
   }

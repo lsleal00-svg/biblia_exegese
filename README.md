@@ -1,11 +1,11 @@
-# Bíblia & Exegese — Torá e Profetas
+# Bíblia & Exegese — Antigo Testamento completo
 
 Aplicativo web de estudo exegético do Antigo Testamento. Interface no **GitHub Pages**, login e dados do usuário no **Supabase**.
 
 ## O que já funciona
 
 - Login com **GitHub** (via Supabase) ou e-mail e senha.
-- Estante com os 39 livros do AT na ordem da **Bíblia Hebraica** (Torá, Profetas Anteriores, Profetas Posteriores, Os Doze, Escritos). A Torá e os Profetas (Gênesis a Malaquias, na ordem hebraica: Josué a 2 Reis, Isaías, Jeremias, Ezequiel e os Doze) estão abertos. Cada divisão tem a sua cor na estante.
+- Estante com os 39 livros do AT na ordem da **Bíblia Hebraica** (Torá, Profetas Anteriores, Profetas Posteriores, Os Doze, Escritos). Os 39 livros do Antigo Testamento estão abertos (Torá, Profetas e Escritos). Os títulos dos salmos aparecem como "Título" antes do versículo 1. O Novo Testamento já aparece numa aba própria e pode ser usado nas referências da Concordância; os textos virão depois. Cada divisão tem a sua cor na estante.
 - Livro → **capítulo** → **versículo**, pela versificação portuguesa (Almeida / Bíblia Livre).
 - Tabela por versículo, com uma linha para cada palavra hebraica:
   - **Texto Bíblico**: já vem com a palavra da Bíblia Livre que corresponde a cada termo hebraico (por alinhamento automático), e você pode corrigir. O **+** cria colunas de tradução suas.
