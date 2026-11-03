@@ -314,7 +314,7 @@
       ? `<h1>Antigo Testamento</h1>
         <p>Na ordem da Bíblia Hebraica — Torá, Profetas e Escritos. Todos os livros do Antigo Testamento estão disponíveis.</p>`
       : `<h1>Novo Testamento</h1>
-        <p>Na ordem das Bíblias tradicionais. Os livros já podem ser usados nas referências da Concordância; os textos vêm nas próximas etapas.</p>`;
+        <p>Na ordem das Bíblias tradicionais. Texto da Bíblia Livre com o grego koiné (Nestle-Aland 28) palavra por palavra.</p>`;
     $app.innerHTML = cabecalho() + `
     <main class="estante">
       <nav class="testamentos" role="tablist" aria-label="Testamento">
@@ -372,6 +372,13 @@
 
   // ------------------------------------------------------------------ exegese
   let ctx = null; // { livro, dados, cap, ver, v (versículo), sigla }
+  // No AT cada linha da tabela é uma palavra hebraica (v.he); no NT, uma palavra grega (v.gr).
+  const ehNT = () => !!(ctx && ctx.dados.testamento === 'nt');
+  const linhas = () => (ehNT() ? ctx.v.gr : ctx.v.he) || [];
+  const ptAuto = (r) => (ehNT() ? r[7] : r[8]) || '';
+  const palavraOriginal = (r, extra = '') => ehNT()
+    ? `<p class="ctx-gr"><span lang="grc">${h(r[0])}</span> <span class="tr">${h(r[1])}</span>${extra}</p>`
+    : `<p class="ctx-he"><span lang="he" dir="rtl">${h(r[0])}</span> <span class="tr">${h(r[1])}</span>${extra}</p>`;
   async function telaExegese(livro, cap, ver) {
     $app.innerHTML = cabecalho() + `<main class="exegese"><div class="carregando">Carregando ${h(livro.nome)} ${cap}:${ver}…</div></main>`;
     ligarCabecalho();
@@ -399,7 +406,8 @@
     desmontarMapa();
     const { livro, cap, ver, v } = ctx;
     const ant = vizinho(-1), prox = vizinho(1);
-    const hebVerso = v.he.map(r => r[0]).join(' ');
+    const nt = ehNT();
+    const hebVerso = nt ? '' : v.he.map(r => r[0]).join(' ');
     const grVerso = v.gr.map(g => g[0]).join(' ');
     $app.innerHTML = cabecalho() + `
     <main class="exegese">
@@ -412,11 +420,13 @@
         ${v.titulo ? '<p class="verso-pt verso-titulo">Título do salmo. <span class="dica">A Bíblia Livre não numera o título; no hebraico ele é o primeiro versículo.</span></p>'
           : `<p class="verso-pt">${h(v.pt)} <span class="sigla">BLIVRE</span></p>`}
         <div class="verso-originais ${S.mostrarOriginais ? '' : 'oculto'}">
-          <p class="verso-he" lang="he" dir="rtl">${h(hebVerso)}</p>
-          <p class="verso-gr" lang="grc">${h(grVerso)} <span class="sigla">LXX</span></p>
-          ${notaVersificacao(livro, v)}
+          ${nt ? (grVerso ? `<p class="verso-gr" lang="grc">${h(grVerso)} <span class="sigla">NA28</span></p>` : '')
+            : `<p class="verso-he" lang="he" dir="rtl">${h(hebVerso)}</p>
+          <p class="verso-gr" lang="grc">${h(grVerso)} <span class="sigla">LXX</span></p>`}
+          ${nt ? '' : notaVersificacao(livro, v)}
         </div>
-        <button class="link pequeno" data-acao="originais">${S.mostrarOriginais ? 'Ocultar' : 'Mostrar'} hebraico e grego do versículo</button>
+        ${nt && !v.gr.length ? '<p class="nota-vers">Este versículo não está no texto grego da Nestle-Aland 28: a edição crítica o trata como acréscimo de manuscritos posteriores (ele aparece no Texto Majoritário e no Textus Receptus).</p>' : ''}
+        ${nt && !v.gr.length ? '' : `<button class="link pequeno" data-acao="originais">${S.mostrarOriginais ? 'Ocultar' : 'Mostrar'} ${nt ? 'grego' : 'hebraico e grego'} do versículo</button>`}
       </section>
       <div class="tabela-moldura">
         <div class="rolagem-topo" id="rolagem-topo" aria-hidden="true"><div></div></div>
@@ -426,7 +436,8 @@
     </main>`;
     ligarCabecalho();
     $app.querySelector('[data-acao="trocar"]').onclick = () => seletor(livro, cap);
-    $app.querySelector('[data-acao="originais"]').onclick = () => {
+    const bOrig = $app.querySelector('[data-acao="originais"]');
+    if (bOrig) bOrig.onclick = () => {
       S.mostrarOriginais = !S.mostrarOriginais; store.set('originais', S.mostrarOriginais ? '1' : '0'); desenharExegese();
     };
     ligarTabela(); ligarInferior();
@@ -444,11 +455,17 @@
     const add = (k, tipo, titulo, cor, w) => c.push(rec(k)
       ? { k, tipo: 'recolhida', alvo: tipo, titulo, cor, g: 'info', w: W.recolhida }
       : { k, tipo, titulo, cor, g: 'info', w, recolhivel: true });
-    add('he', 'he', 'Hebraico', 'verde', W.he);
-    if (!rec('he')) c.push({ k: 'oc', tipo: 'oc', titulo: '', cor: 'verde', g: 'info', w: W.oc });
-    add('she', 'she', 'Strong Hebraico', 'azul', W.strong);
-    add('lxx', 'lxx', 'LXX', 'vermelho', W.lxx);
-    add('sgr', 'sgr', 'Strong Grego', 'azul2', W.strong);
+    if (ehNT()) {
+      add('gk', 'gk', 'Grego', 'verde', W.he);
+      if (!rec('gk')) c.push({ k: 'ocg', tipo: 'ocg', titulo: '', cor: 'verde', g: 'info', w: W.oc });
+      add('sgk', 'sgk', 'Strong Grego', 'azul', W.strong);
+    } else {
+      add('he', 'he', 'Hebraico', 'verde', W.he);
+      if (!rec('he')) c.push({ k: 'oc', tipo: 'oc', titulo: '', cor: 'verde', g: 'info', w: W.oc });
+      add('she', 'she', 'Strong Hebraico', 'azul', W.strong);
+      add('lxx', 'lxx', 'LXX', 'vermelho', W.lxx);
+      add('sgr', 'sgr', 'Strong Grego', 'azul2', W.strong);
+    }
     c.push({ k: 'conc', tipo: 'conc', titulo: 'Concordância', cor: 'lilas', g: 'conc', w: W.conc });
     const dic = obrasCat('dicionario'), com = obrasCat('comentario');
     if (com.length) com.forEach(o => c.push({ k: 'obra:' + o.id, tipo: 'obra', obra: o, titulo: o.titulo, cor: 'pessego', g: 'com', w: W.obra }));
@@ -485,8 +502,8 @@
       <th colspan="${conta('dic')}" class="g-dic">Dicionários <button class="mais" data-acao="nova-obra" data-cat="dicionario" title="Cadastrar dicionário ou léxico" aria-label="Cadastrar dicionário">${I.plus}</button></th>
     </tr><tr class="titulos">`;
     cols.forEach(c => {
-      if (c.tipo === 'oc') return;
-      const span = c.tipo === 'he' ? ' colspan="2"' : '';
+      if (c.tipo === 'oc' || c.tipo === 'ocg') return;
+      const span = (c.tipo === 'he' || c.tipo === 'gk') ? ' colspan="2"' : '';
       // (quando o hebraico está recolhido, a coluna de ocorrências some junto)
       let inner = h(c.titulo);
       if (c.recolhivel) inner = `<span class="th-titulo">${h(c.titulo)}</span><button class="olho" data-acao="recolher" data-k="${c.k}" title="Ocultar coluna" aria-label="Ocultar a coluna ${h(c.titulo)}">${I.eye}</button>`;
@@ -499,11 +516,12 @@
       html += `<th class="c-${c.cor}${c.tipo === 'recolhida' ? ' th-recolhida' : ''}" data-k="${h(c.k)}"${span}>${inner}</th>`;
     });
     html += '</tr></thead><tbody>';
-    ctx.v.he.forEach((r, i) => {
+    linhas().forEach((r, i) => {
       html += '<tr>';
       cols.forEach(c => { html += celulaHTML(c, r, i); });
       html += '</tr>';
     });
+    if (!linhas().length) html += `<tr><td colspan="${cols.length}" class="cel-semtexto">Sem texto grego para este versículo na Nestle-Aland 28.</td></tr>`;
     html += '</tbody>';
     return html;
   }
@@ -513,7 +531,7 @@
     const td = (cls, conteudo, extra = '') => `<td class="${cls}" data-col="${h(c.k)}" data-linha="${i}" tabindex="0" ${extra}>${conteudo}</td>`;
     switch (c.tipo) {
       case 'pt': {
-        const t = cel('pt', i) || r[8];
+        const t = cel('pt', i) || ptAuto(r);
         return td('cel-texto cel-pt', ln(t ? h(t) : '<span class="vazio">—</span>'), `title="Toque para editar"`);
       }
       case 'recolhida':
@@ -529,6 +547,17 @@
           ? `Raiz: <span lang="he" dir="rtl">${h(rl[0])}</span> ${h(rl[1])}${sig ? ' = ' + h(sig) : ''}`
           : '<span class="vazio">—</span>';
         return td('cel-he sub3', ln(h(r[0]), 'heb', 'lang="he" dir="rtl"') + ln(h(r[1]), 'tr') + ln(raizTxt, 'raiz quebra'));
+      }
+      case 'gk': {
+        const sig = tradGr(r[2]).join(', ');
+        return td('cel-he sub3', ln(h(r[0]), 'grc quebra', 'lang="grc"') + ln(h(r[1]), 'tr quebra') +
+          ln(`Lema: <span lang="grc">${h(r[3])}</span>${sig ? ' = ' + h(sig) : ''}`, 'raiz quebra'));
+      }
+      case 'ocg':
+        return td('cel-oc', `<span title="${r[5]} vez(es) em ${h(ctx.livro.nome)} / ${r[6]} no Novo Testamento"><b>${r[5]}</b><i>/${r[6]}</i></span>`);
+      case 'sgk': {
+        const sig = tradGr(r[2]).join(', ');
+        return td('cel-strong sub2', ln(`<b class="num-strong">${h(r[2] || '—')}</b> ${h(sig)}`, 'quebra') + ln(h(r[4]), 'morf quebra'));
       }
       case 'oc':
         return td('cel-oc', `<span title="${r[5]} vez(es) em ${h(ctx.livro.nome)} / ${r[6]} no Antigo Testamento"><b>${r[5]}</b><i>/${r[6]}</i></span>`);
@@ -649,6 +678,8 @@
     const col = td.dataset.col, i = +td.dataset.linha;
     if (col === 'pt' || col.startsWith('trad:')) return modalTextoCelula(col, i);
     if (col === 'he' || col === 'oc') return modalHebraico(i);
+    if (col === 'gk' || col === 'ocg') return modalGregoNT(i);
+    if (col === 'sgk') return modalStrongGrNT(i);
     if (col === 'she') return modalStrongHe(i);
     if (col === 'lxx') return modalLxx(i);
     if (col === 'sgr') return modalStrongGr(i);
@@ -702,13 +733,13 @@
     } catch (e) { return { aviso: `Não foi possível carregar o texto de ${l.nome}. Confira se data/livros/${l.arquivo}.json está no site.` }; }
   }
   function modalConcordancia(i) {
-    const r0 = ctx.v.he[i];
+    const r0 = linhas()[i];
     const ops = (lista) => (lista || []).map(ab => { const l = livroPorAbrev(ab); return l ? `<option value="${h(ab)}">${h(l.nome)}</option>` : ''; }).join('');
     const opcoes = `<optgroup label="Antigo Testamento">${ops(window.ORDEM_AT)}</optgroup><optgroup label="Novo Testamento">${ops(window.ORDEM_NT)}</optgroup>`;
     modal({
       titulo: `Concordância — palavra ${i + 1}`,
       largo: true,
-      corpo: `<p class="ctx-he"><span lang="he" dir="rtl">${h(r0[0])}</span> <span class="tr">${h(r0[1])}</span> <span class="dica">${h(cel('pt', i) || r0[8] || '')}</span></p>
+      corpo: `${palavraOriginal(r0, ` <span class="dica">${h(cel('pt', i) || ptAuto(r0))}</span>`)}
         <form class="conc-form" id="conc-form" autocomplete="off">
           <label class="campo">Livro<select id="cf-livro" required><option value="">Escolha o livro…</option>${opcoes}</select></label>
           <label class="campo curto">Capítulo<input id="cf-cap" type="number" min="1" inputmode="numeric" required></label>
@@ -802,15 +833,15 @@
   }
 
   function modalTextoCelula(col, i) {
-    const r = ctx.v.he[i];
+    const r = linhas()[i];
     const ehPt = col === 'pt';
     const nomeCol = ehPt ? (S.pref.tituloTexto || 'Texto Bíblico') : (S.traducoes.find(t => 'trad:' + t.id === col) || {}).nome;
     const proprio = cel(col, i);
-    const atual = proprio || (ehPt ? r[8] : '');
+    const atual = proprio || (ehPt ? ptAuto(r) : '');
     modal({
       titulo: `${nomeCol} — palavra ${i + 1}`,
-      corpo: `<p class="ctx-he"><span lang="he" dir="rtl">${h(r[0])}</span> <span class="tr">${h(r[1])}</span></p>
-        ${ehPt && !proprio && r[8] ? '<p class="dica">Correspondência automática com a Bíblia Livre. Você pode corrigir.</p>' : ''}
+      corpo: `${palavraOriginal(r)}
+        ${ehPt && !proprio && ptAuto(r) ? '<p class="dica">Correspondência automática com a Bíblia Livre. Você pode corrigir.</p>' : ''}
         <label class="campo">Texto<textarea id="m-txt" rows="3" autofocus>${h(atual)}</textarea></label>
         <p class="dica">Toque nas palavras da Bíblia Livre para inserir:</p>${chipsVerso()}`,
       aoAbrir: (el) => el.querySelectorAll('.chip').forEach(c => c.onclick = () => {
@@ -902,6 +933,44 @@
     });
   }
 
+  // ---------------------------------------------- Novo Testamento: grego koiné (NA28)
+  const notaTradNT = '<p class="dica">Significados do léxico de Strong em português, mais as traduções frequentes da Bíblia Livre no Novo Testamento.</p>';
+  const listaTradNT = (e) => {
+    const base = (e && e[4]) || [], bl = ((e && e[5]) || []).filter(x => !base.includes(x));
+    return listaTrad(base) + (bl.length ? `<h3 class="sub">Na Bíblia Livre (NT)</h3>${listaTrad(bl)}` : '');
+  };
+  function modalGregoNT(i) {
+    const r = ctx.v.gr[i], e = ctx.dados.lex_gr[r[2]];
+    modal({
+      titulo: `Grego — palavra ${i + 1}`,
+      corpo: `<div class="det-he">
+          <p class="grande-gr" lang="grc">${h(r[0])}</p>
+          <p class="tr grande-tr">${h(r[1])}</p>
+          <dl class="ficha">
+            <dt>Morfologia</dt><dd>${h(r[4])}</dd>
+            <dt>Lema (Strong)</dt><dd><span lang="grc">${h(r[3])}</span>${e ? ' ' + h(e[1]) : ''} · ${h(r[2] || 's/ nº')}</dd>
+            <dt>Ocorrências</dt><dd>${r[5]} em ${h(ctx.livro.nome)} · ${r[6]} no Novo Testamento</dd>
+            ${r[8] ? `<dt>Glosa em inglês (TAGNT)</dt><dd>${h(r[8])}</dd>` : ''}
+          </dl>
+          <h3 class="sub">Traduções possíveis</h3>${listaTradNT(e)}${notaTradNT}
+          ${verbeteEN(e)}
+        </div>`,
+      botoes: [{ texto: 'Fechar' }]
+    });
+  }
+  function modalStrongGrNT(i) {
+    const r = ctx.v.gr[i], e = ctx.dados.lex_gr[r[2]];
+    if (!r[2]) return toast('Palavra sem número Strong.');
+    modal({
+      titulo: `Strong ${r[2]}`,
+      corpo: `<p class="ctx-gr"><span lang="grc">${h(e ? e[0] : r[3])}</span> <span class="tr">${h(e ? e[1] : '')}</span></p>
+        <dl class="ficha"><dt>Nesta ocorrência</dt><dd><span lang="grc">${h(r[0])}</span> (${h(r[1])}) — ${h(r[4])}</dd></dl>
+        <h3 class="sub">Traduções</h3>${listaTradNT(e)}${notaTradNT}
+        ${verbeteEN(e)}`,
+      botoes: [{ texto: 'Fechar' }]
+    });
+  }
+
   // ---------------------------------------------- traduções do usuário
   function modalTraducao(t) {
     modal({
@@ -980,10 +1049,10 @@
   }
 
   function modalCitacoesCelula(o, i) {
-    const r = ctx.v.he[i];
+    const r = linhas()[i];
     const m = modal({
       titulo: o.titulo, largo: true,
-      corpo: `<p class="ctx-he"><span lang="he" dir="rtl">${h(r[0])}</span> <span class="tr">${h(r[1])}</span> · palavra ${i + 1}</p><div class="lista-cit"></div>`,
+      corpo: `${palavraOriginal(r, ` · palavra ${i + 1}`)}<div class="lista-cit"></div>`,
       botoes: [{ texto: 'Fechar', classe: 'sec' }, { texto: '+ Adicionar citação', acao: () => {
         modalCitacao({ secao: 'celula', linha: i, obraFixa: o, aoSalvar: () => { atualizarTabela(); desenhar(); } });
         return false;
@@ -1308,6 +1377,8 @@
         <p><b>Westminster Leningrad Codex</b> (domínio público), com lemas e morfologia da <b>Open Scriptures Hebrew Bible</b> (OSHB), licença CC BY 4.0. A descrição morfológica em português e a transliteração foram geradas a partir desses códigos.</p>
         <h3>Septuaginta</h3>
         <p>Edição de <b>Rahlfs (1935)</b>, dados do projeto CenterBLC/LXX (licença MIT). Todas as palavras do versículo grego aparecem na tabela; a distribuição delas pelas linhas hebraicas foi feita por alinhamento estatístico calculado sobre todo o AT.</p>
+        <h3>Novo Testamento grego</h3>
+        <p>Texto da <b>Nestle-Aland 28</b> a partir do <b>TAGNT</b> (Translators Amalgamated Greek New Testament), de STEPBible.org / Tyndale House, Cambridge, licença CC BY 4.0, com número Strong e morfologia de cada palavra; só entram as palavras que estão na NA28. A palavra portuguesa de cada linha vem de alinhamento estatístico entre o grego e a Bíblia Livre em todo o Novo Testamento.</p>
         <h3>Léxico</h3>
         <p><b>Strong’s Exhaustive Concordance</b> (1890), hebraico e grego, em domínio público (Open Scriptures). As traduções possíveis de cada termo são os significados do Strong vertidos para o português, somados às traduções mais frequentes da Bíblia Livre. O verbete original, em inglês, aparece na janela de detalhes.</p>
         <h3>Correspondência com o português</h3>
@@ -1315,7 +1386,7 @@
         <h3>Mapa</h3>
         <p>Imagens de satélite © Esri, Maxar e Earthstar Geographics (camada “Satélite”), e NASA Blue Marble, de domínio público (camada “Relevo”). Mapa feito com Leaflet (licença BSD).</p>
         <h3>Contagens</h3>
-        <p>Ocorrências contadas por lema (número Strong) no livro e em todo o Antigo Testamento hebraico.</p>
+        <p>Ocorrências contadas por lema (número Strong) no livro e em todo o Antigo Testamento hebraico; no Novo Testamento, no livro e em todo o NT grego.</p>
       </div>`,
       botoes: [{ texto: 'Fechar' }]
     });

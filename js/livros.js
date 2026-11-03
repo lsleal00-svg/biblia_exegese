@@ -79,13 +79,13 @@ window.CANON.push(
     id: 'historicos-nt', testamento: 'nt', nome: 'Evangelhos e Atos', hebraico: 'Εὐαγγέλια', lang: 'grc', subtitulo: 'Livros históricos', cor: 'evangelhos',
     grupos: [
       { titulo: 'Evangelhos', cor: 'evangelhos', livros: [
-        { abrev: 'Mt', nome: 'Mateus', heb: 'Κατὰ Μαθθαῖον' },
-        { abrev: 'Mc', nome: 'Marcos', heb: 'Κατὰ Μᾶρκον' },
-        { abrev: 'Lc', nome: 'Lucas', heb: 'Κατὰ Λουκᾶν' },
-        { abrev: 'Jo', nome: 'João', heb: 'Κατὰ Ἰωάννην' }
+        { abrev: 'Mt', nome: 'Mateus', heb: 'Κατὰ Μαθθαῖον', arquivo: 'mt', ativo: true },
+        { abrev: 'Mc', nome: 'Marcos', heb: 'Κατὰ Μᾶρκον', arquivo: 'mc', ativo: true },
+        { abrev: 'Lc', nome: 'Lucas', heb: 'Κατὰ Λουκᾶν', arquivo: 'lc', ativo: true },
+        { abrev: 'Jo', nome: 'João', heb: 'Κατὰ Ἰωάννην', arquivo: 'jo', ativo: true }
       ]},
       { titulo: 'Histórico', cor: 'atos', livros: [
-        { abrev: 'At', nome: 'Atos', heb: 'Πράξεις Ἀποστόλων' }
+        { abrev: 'At', nome: 'Atos', heb: 'Πράξεις Ἀποστόλων', arquivo: 'at', ativo: true }
       ]}
     ]
   },
@@ -93,36 +93,36 @@ window.CANON.push(
     id: 'cartas', testamento: 'nt', nome: 'Cartas', hebraico: 'Ἐπιστολαί', lang: 'grc', subtitulo: 'Epístolas paulinas e gerais', cor: 'paulo',
     grupos: [
       { titulo: 'Cartas de Paulo', cor: 'paulo', livros: [
-        { abrev: 'Rm', nome: 'Romanos', heb: 'Πρὸς Ῥωμαίους' },
-        { abrev: '1Co', nome: '1 Coríntios', heb: 'Πρὸς Κορινθίους Α' },
-        { abrev: '2Co', nome: '2 Coríntios', heb: 'Πρὸς Κορινθίους Β' },
-        { abrev: 'Gl', nome: 'Gálatas', heb: 'Πρὸς Γαλάτας' },
-        { abrev: 'Ef', nome: 'Efésios', heb: 'Πρὸς Ἐφεσίους' },
-        { abrev: 'Fp', nome: 'Filipenses', heb: 'Πρὸς Φιλιππησίους' },
-        { abrev: 'Cl', nome: 'Colossenses', heb: 'Πρὸς Κολοσσαεῖς' },
-        { abrev: '1Ts', nome: '1 Tessalonicenses', heb: 'Πρὸς Θεσσαλονικεῖς Α' },
-        { abrev: '2Ts', nome: '2 Tessalonicenses', heb: 'Πρὸς Θεσσαλονικεῖς Β' },
-        { abrev: '1Tm', nome: '1 Timóteo', heb: 'Πρὸς Τιμόθεον Α' },
-        { abrev: '2Tm', nome: '2 Timóteo', heb: 'Πρὸς Τιμόθεον Β' },
-        { abrev: 'Tt', nome: 'Tito', heb: 'Πρὸς Τίτον' },
-        { abrev: 'Fm', nome: 'Filemom', heb: 'Πρὸς Φιλήμονα' }
+        { abrev: 'Rm', nome: 'Romanos', heb: 'Πρὸς Ῥωμαίους', arquivo: 'rm', ativo: true },
+        { abrev: '1Co', nome: '1 Coríntios', heb: 'Πρὸς Κορινθίους Α', arquivo: '1co', ativo: true },
+        { abrev: '2Co', nome: '2 Coríntios', heb: 'Πρὸς Κορινθίους Β', arquivo: '2co', ativo: true },
+        { abrev: 'Gl', nome: 'Gálatas', heb: 'Πρὸς Γαλάτας', arquivo: 'gl', ativo: true },
+        { abrev: 'Ef', nome: 'Efésios', heb: 'Πρὸς Ἐφεσίους', arquivo: 'ef', ativo: true },
+        { abrev: 'Fp', nome: 'Filipenses', heb: 'Πρὸς Φιλιππησίους', arquivo: 'fp', ativo: true },
+        { abrev: 'Cl', nome: 'Colossenses', heb: 'Πρὸς Κολοσσαεῖς', arquivo: 'cl', ativo: true },
+        { abrev: '1Ts', nome: '1 Tessalonicenses', heb: 'Πρὸς Θεσσαλονικεῖς Α', arquivo: '1ts', ativo: true },
+        { abrev: '2Ts', nome: '2 Tessalonicenses', heb: 'Πρὸς Θεσσαλονικεῖς Β', arquivo: '2ts', ativo: true },
+        { abrev: '1Tm', nome: '1 Timóteo', heb: 'Πρὸς Τιμόθεον Α', arquivo: '1tm', ativo: true },
+        { abrev: '2Tm', nome: '2 Timóteo', heb: 'Πρὸς Τιμόθεον Β', arquivo: '2tm', ativo: true },
+        { abrev: 'Tt', nome: 'Tito', heb: 'Πρὸς Τίτον', arquivo: 'tt', ativo: true },
+        { abrev: 'Fm', nome: 'Filemom', heb: 'Πρὸς Φιλήμονα', arquivo: 'fm', ativo: true }
       ]},
       { titulo: 'Cartas gerais', cor: 'gerais', livros: [
-        { abrev: 'Hb', nome: 'Hebreus', heb: 'Πρὸς Ἑβραίους' },
-        { abrev: 'Tg', nome: 'Tiago', heb: 'Ἰακώβου' },
-        { abrev: '1Pe', nome: '1 Pedro', heb: 'Πέτρου Α' },
-        { abrev: '2Pe', nome: '2 Pedro', heb: 'Πέτρου Β' },
-        { abrev: '1Jo', nome: '1 João', heb: 'Ἰωάννου Α' },
-        { abrev: '2Jo', nome: '2 João', heb: 'Ἰωάννου Β' },
-        { abrev: '3Jo', nome: '3 João', heb: 'Ἰωάννου Γ' },
-        { abrev: 'Jd', nome: 'Judas', heb: 'Ἰούδα' }
+        { abrev: 'Hb', nome: 'Hebreus', heb: 'Πρὸς Ἑβραίους', arquivo: 'hb', ativo: true },
+        { abrev: 'Tg', nome: 'Tiago', heb: 'Ἰακώβου', arquivo: 'tg', ativo: true },
+        { abrev: '1Pe', nome: '1 Pedro', heb: 'Πέτρου Α', arquivo: '1pe', ativo: true },
+        { abrev: '2Pe', nome: '2 Pedro', heb: 'Πέτρου Β', arquivo: '2pe', ativo: true },
+        { abrev: '1Jo', nome: '1 João', heb: 'Ἰωάννου Α', arquivo: '1jo', ativo: true },
+        { abrev: '2Jo', nome: '2 João', heb: 'Ἰωάννου Β', arquivo: '2jo', ativo: true },
+        { abrev: '3Jo', nome: '3 João', heb: 'Ἰωάννου Γ', arquivo: '3jo', ativo: true },
+        { abrev: 'Jd', nome: 'Judas', heb: 'Ἰούδα', arquivo: 'jd', ativo: true }
       ]}
     ]
   },
   {
     id: 'profetico-nt', testamento: 'nt', nome: 'Profético', hebraico: 'Ἀποκάλυψις', lang: 'grc', subtitulo: 'Revelação de Jesus Cristo', cor: 'apocalipse',
     grupos: [{ cor: 'apocalipse', livros: [
-      { abrev: 'Ap', nome: 'Apocalipse', heb: 'Ἀποκάλυψις Ἰωάννου' }
+      { abrev: 'Ap', nome: 'Apocalipse', heb: 'Ἀποκάλυψις Ἰωάννου', arquivo: 'ap', ativo: true }
     ]}]
   }
 );
