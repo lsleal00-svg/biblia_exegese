@@ -64,8 +64,12 @@
     };
     const esc = (e) => { if (e.key === 'Escape') fechar(); };
     document.addEventListener('keydown', esc);
+    // só fecha ao tocar no fundo se o toque COMEÇOU no fundo: selecionar um texto e soltar o mouse
+    // fora da caixa não pode fechar a janela
+    let comecouNoFundo = false;
+    wrap.addEventListener('pointerdown', (e) => { comecouNoFundo = e.target === wrap; });
     wrap.addEventListener('click', async (e) => {
-      if (e.target === wrap || e.target.closest('[data-fechar]')) return fechar();
+      if ((e.target === wrap && comecouNoFundo) || e.target.closest('[data-fechar]')) return fechar();
       const b = e.target.closest('[data-b]');
       if (b) {
         const acao = botoes[+b.dataset.b].acao;
@@ -644,7 +648,13 @@
   // textos leves (só o português) de cada livro: data/texto/<arquivo>.json
   const textos = {};
   function carregarTexto(arquivo) {
-    if (!textos[arquivo]) textos[arquivo] = fetch(`data/texto/${arquivo}.json`).then(r => { if (!r.ok) throw new Error(); return r.json(); })
+    // primeiro o arquivo leve (data/texto); se ele não estiver no site, usa o arquivo completo do livro
+    const doLivro = () => carregarLivro(arquivo).then(d => ({
+      capitulos: d.capitulos, v: Object.fromEntries(Object.entries(d.versiculos).map(([k, x]) => [k, x.pt]))
+    }));
+    if (!textos[arquivo]) textos[arquivo] = fetch(`data/texto/${arquivo}.json`)
+      .then(r => { if (!r.ok) throw new Error('sem texto leve'); return r.json(); })
+      .catch(doLivro)
       .catch(e => { delete textos[arquivo]; throw e; });
     return textos[arquivo];
   }
@@ -661,7 +671,7 @@
       const partes = versosDaRef(r).map(x => t.v[`${r.c}:${x}`]).filter(Boolean);
       if (!partes.length) return { aviso: `${refLonga(r)} não existe na Bíblia Livre.` };
       return { texto: partes.join(' ') };
-    } catch (e) { return { aviso: 'Não foi possível carregar o texto agora. Verifique a conexão.' }; }
+    } catch (e) { return { aviso: `Não foi possível carregar o texto de ${l.nome}. Confira se data/livros/${l.arquivo}.json está no site.` }; }
   }
   function modalConcordancia(i) {
     const r0 = ctx.v.he[i];
