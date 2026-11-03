@@ -111,7 +111,7 @@
     mostrarOriginais: store.get('originais') !== '0'
   };
   const LIVROS = [];
-  CANON.forEach(d => d.grupos.forEach(g => g.livros.forEach(l => LIVROS.push({ ...l, divisao: d.id }))));
+  CANON.forEach(d => d.grupos.forEach(g => g.livros.forEach(l => LIVROS.push({ ...l, divisao: d.id, testamento: d.testamento || 'at' }))));
   const livroPorArquivo = (a) => LIVROS.find(l => l.arquivo === a);
 
   // ------------------------------------------------------------------ referências bibliográficas
@@ -295,18 +295,25 @@
           ${l.ativo ? '<span class="livro-fita"></span>' : `<span class="livro-cadeado">${I.lock}</span>`}
         </span>
         <span class="livro-nome">${h(l.nome)}</span>
-        <span class="livro-heb" lang="he" dir="rtl">${h(l.heb)}</span>
+        <span class="livro-heb" ${l.testamento === 'nt' ? 'lang="grc"' : 'lang="he" dir="rtl"'}>${h(l.heb)}</span>
       </button>`;
+    const tes = store.get('testamento') === 'nt' ? 'nt' : 'at';
+    const intro = tes === 'at'
+      ? `<h1>Antigo Testamento</h1>
+        <p>Na ordem da Bíblia Hebraica — Torá, Profetas e Escritos. Nesta etapa, a <strong>Torá</strong> e os <strong>Profetas</strong> estão disponíveis; os Escritos vêm a seguir.</p>`
+      : `<h1>Novo Testamento</h1>
+        <p>Na ordem das Bíblias tradicionais. Os livros já podem ser usados nas referências da Concordância; os textos vêm nas próximas etapas.</p>`;
     $app.innerHTML = cabecalho() + `
     <main class="estante">
-      <section class="estante-intro">
-        <h1>Antigo Testamento</h1>
-        <p>Na ordem da Bíblia Hebraica — Torá, Profetas e Escritos. Nesta etapa, todo o <strong>Pentateuco</strong> está disponível; os demais livros vêm a seguir.</p>
-      </section>
-      ${CANON.map(d => `
+      <nav class="testamentos" role="tablist" aria-label="Testamento">
+        <button role="tab" data-tes="at" aria-selected="${tes === 'at'}" class="${tes === 'at' ? 'ativa' : ''}">Antigo Testamento</button>
+        <button role="tab" data-tes="nt" aria-selected="${tes === 'nt'}" class="${tes === 'nt' ? 'ativa' : ''}">Novo Testamento</button>
+      </nav>
+      <section class="estante-intro">${intro}</section>
+      ${CANON.filter(d => (d.testamento || 'at') === tes).map(d => `
         <section class="divisao ${d.cor}">
           <header class="divisao-cab">
-            <h2>${h(d.nome)} <span lang="he" dir="rtl">${h(d.hebraico)}</span></h2>
+            <h2>${h(d.nome)} <span ${d.lang === 'grc' ? 'lang="grc"' : 'lang="he" dir="rtl"'}>${h(d.hebraico)}</span></h2>
             <p>${h(d.subtitulo)}</p>
           </header>
           ${d.grupos.map(g => `
@@ -316,6 +323,12 @@
         </section>`).join('')}
     </main>`;
     ligarCabecalho();
+    $app.querySelectorAll('[data-tes]').forEach(b => b.onclick = () => {
+      if (b.dataset.tes === tes) return;
+      store.set('testamento', b.dataset.tes); telaEstante();
+      if (window.gsap && !matchMedia('(prefers-reduced-motion: reduce)').matches)
+        gsap.from($app.querySelectorAll('.divisao'), { autoAlpha: 0, y: 10, duration: 0.3, stagger: 0.05, ease: 'power3.out', clearProps: 'all' });
+    });
     $app.querySelectorAll('.livro').forEach(b => b.onclick = () => {
       const l = LIVROS.find(x => x.arquivo && x.arquivo === b.dataset.livro);
       if (!l) return toast(`${b.title.replace(' — em breve', '')}: disponível nas próximas etapas.`);
@@ -634,7 +647,8 @@
   // ---------------------------------------------- concordância (referências cruzadas por linha)
   // Cada linha guarda uma lista como ["Gn|2|4", "Is|7|14-16"] na célula 'conc'.
   const livroPorAbrev = (ab) => LIVROS.find(l => l.abrev === ab);
-  const ordemLivro = (ab) => { const i = (window.ORDEM_AT || []).indexOf(ab); return i < 0 ? 99 : i; };
+  const ORDEM_BIBLIA = [...(window.ORDEM_AT || []), ...(window.ORDEM_NT || [])];
+  const ordemLivro = (ab) => { const i = ORDEM_BIBLIA.indexOf(ab); return i < 0 ? 999 : i; };
   function concRefs(i) {
     let v = cel('conc', i);
     try { v = v ? JSON.parse(v) : []; } catch (e) { v = []; }
@@ -675,7 +689,8 @@
   }
   function modalConcordancia(i) {
     const r0 = ctx.v.he[i];
-    const opcoes = (window.ORDEM_AT || []).map(ab => { const l = livroPorAbrev(ab); return l ? `<option value="${h(ab)}">${h(l.nome)}</option>` : ''; }).join('');
+    const ops = (lista) => (lista || []).map(ab => { const l = livroPorAbrev(ab); return l ? `<option value="${h(ab)}">${h(l.nome)}</option>` : ''; }).join('');
+    const opcoes = `<optgroup label="Antigo Testamento">${ops(window.ORDEM_AT)}</optgroup><optgroup label="Novo Testamento">${ops(window.ORDEM_NT)}</optgroup>`;
     modal({
       titulo: `Concordância — palavra ${i + 1}`,
       largo: true,
