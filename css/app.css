@@ -783,3 +783,15 @@ body.pode-instalar .icone[data-acao="instalar"] { display: inline-grid !importan
 
 /* NT: versículo sem texto na NA28 */
 .cel-semtexto { padding: 18px 14px; color: var(--tinta-2, #6b5f4f); font-style: italic; text-align: left; }
+
+/* AT: Vulgata latina (púrpura episcopal, para distinguir do vermelho da LXX) */
+:root { --vinho: #6b2d5c; --vinho2: #85507a; }
+.c-vinho { background: linear-gradient(180deg, #7d3a6d, var(--vinho)); color: #fff; }
+.c-vinho2 { background: linear-gradient(180deg, #94608a, var(--vinho2)); color: #fff; }
+.tabela tbody td.cel-recolhida.c-vinho, .tabela tbody td.cel-recolhida.c-vinho2 { box-shadow: inset 3px 0 0 var(--vinho); }
+.verso-la { font-size: 16px; margin: 2px 0 4px; color: var(--tinta-2); font-style: italic; }
+.verso-la .sigla { font-style: normal; }
+.grande-la { font-size: 26px; text-align: center; margin: 4px 0 14px; font-style: italic; }
+.ctx-la { font-size: 18px; font-style: italic; }
+.verso-lat-lista .marcada, .verso-lxx .marcada { background: var(--amarelo2); border-radius: 4px; padding: 0 2px; }
+.lat-orth { font-style: italic; }

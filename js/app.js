@@ -278,6 +278,17 @@
     return '';
   }
 
+  const maiuscula = (t) => t ? t.charAt(0).toUpperCase() + t.slice(1) : t;
+  function notaVulgata(livro, v) {
+    if (!ctx.dados.lex_la) return '';
+    const ab = h(livro.abrev);
+    const sl = livro.abrev === 'Sl' ? 'Nos Salmos, o latim é o Saltério iuxta Hebraeos (traduzido por Jerônimo do hebraico)' : '';
+    if (!v.la || !v.la.length) return `<p class="nota-vers">${sl ? sl + '; ' : ''}${sl ? 'este' : 'Este'} versículo não está na Vulgata.</p>`;
+    const ref = v.la_ref ? `na Vulgata, este versículo é ${ab} ${h(v.la_ref.replace(/; /g, ' e '))}` : '';
+    if (!sl && !ref) return '';
+    return `<p class="nota-vers">${sl}${sl && ref ? '; ' : ''}${!sl ? maiuscula(ref) : ref}.</p>`;
+  }
+
   // ------------------------------------------------------------------ cabeçalho
   function cabecalho(extra = '') {
     const nome = S.user.user_metadata && (S.user.user_metadata.user_name || S.user.user_metadata.full_name) || S.user.email || '';
@@ -409,6 +420,7 @@
     const nt = ehNT();
     const hebVerso = nt ? '' : v.he.map(r => r[0]).join(' ');
     const grVerso = v.gr.map(g => g[0]).join(' ');
+    const laVerso = !nt && v.la && v.la.length ? maiuscula(v.la.map(x => x[0]).join(' ')) : '';
     $app.innerHTML = cabecalho() + `
     <main class="exegese">
       <div class="ref-barra">
@@ -422,11 +434,12 @@
         <div class="verso-originais ${S.mostrarOriginais ? '' : 'oculto'}">
           ${nt ? (grVerso ? `<p class="verso-gr" lang="grc">${h(grVerso)} <span class="sigla">NA28</span></p>` : '')
             : `<p class="verso-he" lang="he" dir="rtl">${h(hebVerso)}</p>
-          <p class="verso-gr" lang="grc">${h(grVerso)} <span class="sigla">LXX</span></p>`}
-          ${nt ? '' : notaVersificacao(livro, v)}
+          <p class="verso-gr" lang="grc">${h(grVerso)} <span class="sigla">LXX</span></p>
+          ${laVerso ? `<p class="verso-la" lang="la">${h(laVerso)} <span class="sigla">VULG</span></p>` : ''}`}
+          ${nt ? '' : notaVersificacao(livro, v) + notaVulgata(livro, v)}
         </div>
         ${nt && !v.gr.length ? '<p class="nota-vers">Este versículo não está no texto grego da Nestle-Aland 28: a edição crítica o trata como acréscimo de manuscritos posteriores (ele aparece no Texto Majoritário e no Textus Receptus).</p>' : ''}
-        ${nt && !v.gr.length ? '' : `<button class="link pequeno" data-acao="originais">${S.mostrarOriginais ? 'Ocultar' : 'Mostrar'} ${nt ? 'grego' : 'hebraico e grego'} do versículo</button>`}
+        ${nt && !v.gr.length ? '' : `<button class="link pequeno" data-acao="originais">${S.mostrarOriginais ? 'Ocultar' : 'Mostrar'} ${nt ? 'grego' : (ctx.dados.lex_la ? 'hebraico, grego e latim' : 'hebraico e grego')} do versículo</button>`}
       </section>
       <div class="tabela-moldura">
         <div class="rolagem-topo" id="rolagem-topo" aria-hidden="true"><div></div></div>
@@ -465,6 +478,10 @@
       add('she', 'she', 'Strong Hebraico', 'azul', W.strong);
       add('lxx', 'lxx', 'LXX', 'vermelho', W.lxx);
       add('sgr', 'sgr', 'Strong Grego', 'azul2', W.strong);
+      if (ctx.dados.lex_la) {
+        add('la', 'la', 'Vulgata', 'vinho', W.lxx);
+        add('lla', 'lla', 'Léxico Latino', 'vinho2', W.strong);
+      }
     }
     c.push({ k: 'conc', tipo: 'conc', titulo: 'Concordância', cor: 'lilas', g: 'conc', w: W.conc });
     const dic = obrasCat('dicionario'), com = obrasCat('comentario');
@@ -488,6 +505,20 @@
     return { g, idx, todas };
   }
   const chaveGrega = (g) => g[3] || ('L:' + g[2]);
+  // Vulgata: palavras latinas de cada linha hebraica (r[10]) e a principal (r[11])
+  const lexLa = (l) => (ctx.dados.lex_la || {})[l];
+  const tradLa = (l) => {
+    const e = lexLa(l); if (!e) return [];
+    const t = e[4] && e[4].length ? e[4] : e[5] || [];
+    return e[2] === 'nome próprio' ? t.map(maiuscula) : t;
+  };
+  const lemaLa = (l) => { const e = lexLa(l); return e ? e[0] : String(l || '').replace(/^@/, ''); };
+  function latimDaLinha(i) {
+    const r = ctx.v.he[i], la = ctx.v.la || [];
+    const todas = (r[10] || []).map(j => la[j]).filter(Boolean);
+    const p = r[11] >= 0 ? la[r[11]] : null;
+    return { p, todas, idx: r[11] };
+  }
   const citacoesCelula = (obraId, linha) => S.citacoes.filter(c => c.secao === 'celula' && c.obra_id === obraId && c.linha === linha);
 
   // ---------------------------------------------- tabela
@@ -578,6 +609,20 @@
         if (!g) return td('cel-strong', ln('<span class="vazio">—</span>'));
         const sig = tradGr(chaveGrega(g)).join(', ');
         return td('cel-strong sub2', ln(`<b class="num-strong">${h(g[3] || 's/ nº')}</b> ${h(sig)}`, 'quebra') + ln(h(g[4]), 'morf quebra'));
+      }
+      case 'la': {
+        const { p, todas } = latimDaLinha(i);
+        if (!p) return td('cel-gr', ln('<span class="vazio">—</span>'));
+        const sig = tradLa(p[1]).join(', ');
+        return td('cel-gr sub2', ln(h(todas.map(x => x[0]).join(' ')), 'quebra lat-orth', 'lang="la"') +
+          ln(`Lema: <span lang="la" class="lat-orth">${h(lemaLa(p[1]))}</span>${sig ? ' = ' + h(sig) : ''}`, 'raiz quebra'));
+      }
+      case 'lla': {
+        const { p } = latimDaLinha(i);
+        if (!p) return td('cel-strong', ln('<span class="vazio">—</span>'));
+        const e = lexLa(p[1]) || [];
+        return td('cel-strong sub2', ln(`<b class="lat-orth" lang="la">${h(lemaLa(p[1]))}</b> ${h(tradLa(p[1]).join(', '))}`, 'quebra') +
+          ln(h([e[1], e[2]].filter(Boolean).join(' · ')), 'morf quebra'));
       }
       case 'obra': {
         const cs = citacoesCelula(c.obra.id, i);
@@ -683,6 +728,8 @@
     if (col === 'she') return modalStrongHe(i);
     if (col === 'lxx') return modalLxx(i);
     if (col === 'sgr') return modalStrongGr(i);
+    if (col === 'la') return modalVulgata(i);
+    if (col === 'lla') return modalLexLatino(i);
     if (col === 'conc') return modalConcordancia(i);
     if (col.startsWith('obra:')) return modalCitacoesCelula(obraPorId(col.slice(5)), i);
   }
@@ -929,6 +976,53 @@
         <h3 class="sub">Traduções</h3>${listaTrad(tradGr(chave))}
         <p class="dica">Significados do léxico de Strong em português (quando o termo tem número Strong).</p>
         ${verbeteEN(e)}`,
+      botoes: [{ texto: 'Fechar' }]
+    });
+  }
+
+  // ---------------------------------------------- Vulgata (AT)
+  const notaLa = '<p class="dica">Significados do Lewis & Short em português, mais as traduções da Bíblia Livre que correspondem a este termo no Antigo Testamento.</p>';
+  const listaLa = (l) => {
+    const e = lexLa(l) || [], np = e[2] === 'nome próprio', base = e[4] || [],
+      bl = (e[5] || []).map(x => np ? maiuscula(x) : x).filter(x => !base.includes(x));
+    return listaTrad(base.length ? base : bl) + (base.length && bl.length ? `<h3 class="sub">Na Bíblia Livre</h3>${listaTrad(bl)}` : '');
+  };
+  const verbeteLS = (e) => e && e[3] ? `<details class="verbete"><summary>Verbete de Lewis & Short (1879), em inglês</summary>
+      <p><b>${h(e[0])}</b>${e[1] ? ', ' + h(e[1]) : ''}${e[2] ? ' — ' + h(e[2]) : ''}</p><p>${h(e[3])}</p></details>` : '';
+  const ENCL = { que: '+ -que (“e”)', ne: '+ -ne (pergunta)', ve: '+ -ve (“ou”)' };
+  function fichaLatina(x, principal) {
+    const e = lexLa(x[1]) || [];
+    return `<dt lang="la" class="lat-orth${principal ? ' principal' : ''}">${h(x[0])}</dt><dd>lema <span lang="la" class="lat-orth">${h(lemaLa(x[1]))}</span>${e[2] ? ' · ' + h(e[2]) : ''}${x[2] ? ' ' + h(ENCL[x[2]] || '') : ''}
+      <br>${x[3]} em ${h(ctx.livro.nome)} · ${x[4]} no AT${tradLa(x[1]).length ? `<br><span class="trad-mini">${h(tradLa(x[1]).join(', '))}</span>` : ''}</dd>`;
+  }
+  function modalVulgata(i) {
+    const r = ctx.v.he[i], la = ctx.v.la || [];
+    const { p, todas, idx } = latimDaLinha(i);
+    const marcadas = new Set(r[10] || []);
+    modal({
+      titulo: `Vulgata — palavra ${i + 1}`, largo: true,
+      corpo: `${palavraOriginal(r)}
+        ${todas.length ? `<p class="grande-la" lang="la">${h(todas.map(x => x[0]).join(' '))}</p>
+          <dl class="ficha lxx-ficha">${(r[10] || []).map(j => fichaLatina(la[j], j === idx)).join('')}</dl>
+          ${p ? `<h3 class="sub">Significados de <span lang="la" class="lat-orth">${h(lemaLa(p[1]))}</span></h3>${listaLa(p[1])}${notaLa}${verbeteLS(lexLa(p[1]))}` : ''}`
+          : '<p class="vazio">A Vulgata não traz palavra correspondente a este termo neste versículo.</p>'}
+        <h3 class="sub">Versículo na Vulgata${ctx.livro.abrev === 'Sl' ? ' (Saltério iuxta Hebraeos)' : ''}</h3>
+        <p class="verso-lxx verso-lat-lista" lang="la">${la.map((x, j) => `<span class="lat-orth ${marcadas.has(j) ? 'marcada' : ''}">${h(x[0])}</span>`).join(' ')}</p>`,
+      botoes: [{ texto: 'Fechar' }]
+    });
+  }
+  function modalLexLatino(i) {
+    const { p } = latimDaLinha(i);
+    if (!p) return modalVulgata(i);
+    const e = lexLa(p[1]) || [];
+    modal({
+      titulo: `Léxico latino — ${lemaLa(p[1])}`,
+      corpo: `<p class="ctx-la" lang="la">${h(lemaLa(p[1]))}${e[1] ? ` <span class="tr">${h(e[1])}</span>` : ''}</p>
+        <dl class="ficha">${e[2] ? `<dt>Classe</dt><dd>${h(e[2])}</dd>` : ''}
+          <dt>Nesta ocorrência</dt><dd><span lang="la" class="lat-orth">${h(p[0])}</span>${p[2] ? ' ' + h(ENCL[p[2]] || '') : ''}</dd>
+          <dt>Ocorrências</dt><dd>${p[3]} em ${h(ctx.livro.nome)} · ${p[4]} no Antigo Testamento</dd></dl>
+        <h3 class="sub">Significados</h3>${listaLa(p[1])}${notaLa}
+        ${verbeteLS(e)}`,
       botoes: [{ texto: 'Fechar' }]
     });
   }
@@ -1377,6 +1471,9 @@
         <p><b>Westminster Leningrad Codex</b> (domínio público), com lemas e morfologia da <b>Open Scriptures Hebrew Bible</b> (OSHB), licença CC BY 4.0. A descrição morfológica em português e a transliteração foram geradas a partir desses códigos.</p>
         <h3>Septuaginta</h3>
         <p>Edição de <b>Rahlfs (1935)</b>, dados do projeto CenterBLC/LXX (licença MIT). Todas as palavras do versículo grego aparecem na tabela; a distribuição delas pelas linhas hebraicas foi feita por alinhamento estatístico calculado sobre todo o AT.</p>
+        <h3>Vulgata latina (Antigo Testamento)</h3>
+        <p>Texto latino de Jerônimo do módulo “Latin Vulgate” do projeto SWORD/CrossWire, de domínio público (via scrollmapper/bible_databases). Nos <b>Salmos</b> entra o <b>Saltério iuxta Hebraeos</b>, que Jerônimo traduziu diretamente do hebraico (e não o Galicano, feito a partir da LXX). Numeração conferida pela tabela TVTMS do STEPBible (CC BY). Lemas pelo simplemma (MIT); a distribuição das palavras latinas pelas linhas hebraicas foi feita por alinhamento estatístico em todo o AT.</p>
+        <p><b>Lewis & Short, A Latin Dictionary</b> (1879), domínio público, edição digital do Perseus Digital Library (CC BY-SA). Os significados em português foram vertidos do verbete; o verbete original, em inglês, aparece na janela de detalhes.</p>
         <h3>Novo Testamento grego</h3>
         <p>Texto da <b>Nestle-Aland 28</b> a partir do <b>TAGNT</b> (Translators Amalgamated Greek New Testament), de STEPBible.org / Tyndale House, Cambridge, licença CC BY 4.0, com número Strong e morfologia de cada palavra; só entram as palavras que estão na NA28. A palavra portuguesa de cada linha vem de alinhamento estatístico entre o grego e a Bíblia Livre em todo o Novo Testamento.</p>
         <h3>Léxico</h3>
