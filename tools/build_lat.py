@@ -30,7 +30,13 @@ VULG_NOME = {'Gen': 'Genesis', 'Exod': 'Exodus', 'Lev': 'Leviticus', 'Num': 'Num
   'Esth': 'Esther', 'Job': 'Job', 'Ps': 'Psalms', 'Prov': 'Proverbs', 'Eccl': 'Ecclesiastes', 'Song': 'Song of Solomon',
   'Isa': 'Isaiah', 'Jer': 'Jeremiah', 'Lam': 'Lamentations', 'Ezek': 'Ezekiel', 'Dan': 'Daniel', 'Hos': 'Hosea',
   'Joel': 'Joel', 'Amos': 'Amos', 'Obad': 'Obadiah', 'Jonah': 'Jonah', 'Mic': 'Micah', 'Nah': 'Nahum', 'Hab': 'Habakkuk',
-  'Zeph': 'Zephaniah', 'Hag': 'Haggai', 'Zech': 'Zechariah', 'Mal': 'Malachi'}
+  'Zeph': 'Zephaniah', 'Hag': 'Haggai', 'Zech': 'Zechariah', 'Mal': 'Malachi', 
+  # Novo Testamento (códigos do TAGNT)
+  'Mat': 'Matthew', 'Mrk': 'Mark', 'Luk': 'Luke', 'Jhn': 'John', 'Act': 'Acts', 'Rom': 'Romans', '1Co': 'I Corinthians',
+  '2Co': 'II Corinthians', 'Gal': 'Galatians', 'Eph': 'Ephesians', 'Php': 'Philippians', 'Col': 'Colossians',
+  '1Th': 'I Thessalonians', '2Th': 'II Thessalonians', '1Ti': 'I Timothy', '2Ti': 'II Timothy', 'Tit': 'Titus',
+  'Phm': 'Philemon', 'Heb': 'Hebrews', 'Jas': 'James', '1Pe': 'I Peter', '2Pe': 'II Peter', '1Jn': 'I John', '2Jn': 'II John',
+  '3Jn': 'III John', 'Jud': 'Jude', 'Rev': 'Revelation of John'}
 
 def limpa(t):
     t = re.sub(r'[\[\]()*;0-9]', ' ', t)
@@ -91,6 +97,7 @@ _i, _j = _src.index('def _tvtms_refs'), _src.index('TVTMS = carregar_tvtms')
 _g = {'re': re, 'os': os}
 # (as linhas "Absent [= Sus 1:1]" dos acréscimos de Daniel não podem virar chave de Daniel 1)
 exec(_src[_i:_j].replace("startswith('Greek')", "startswith('Latin')")
+     .replace("'Mal': 'Mal'}", "'Mal': 'Mal', " + ", ".join(f"'{x}': '{x}'" for x in ['Mat', 'Mrk', 'Luk', 'Jhn', 'Act', 'Rom', '1Co', '2Co', 'Gal', 'Eph', 'Php', 'Col', '1Th', '2Th', '1Ti', '2Ti', 'Tit', 'Phm', 'Heb', 'Jas', '1Pe', '2Pe', '1Jn', '2Jn', '3Jn', 'Jud', 'Rev']) + "}")
      .replace("k = _tvtms_refs(c[1])", "k = None if re.match(r'(Absent|Sus|Bel|Aza|S3Y|Man|1Es|2Es|Pra)', c[1].strip()) else _tvtms_refs(c[1])"), _g)
 TVL = _g['carregar_tvtms'](os.path.join(SRC, 'tvtms.txt'))
 
@@ -152,7 +159,10 @@ MEIO = [('', ''), ('e', 'ae'), ('ch', 'c'), ('f', 'ph'), ('i', 'y'), ('br', 'bbr
 SUF = [('', ''), ('or', 'o'), ('o', 'or'), ('i', 'io'), ('us', 'um'), ('e', 'ia'), ('a', 'ae'), ('a', 'us'), ('um', 'us'), ('us', 'a'),
   ('ns', 'o'), ('ens', 'o'), ('ens', 'eo'), ('iens', 'io'), ('iens', 'ior'), ('ens', 'or'), ('ans', 'o'), ('ans', 'or'), ('tus', 'o'), ('itus', 'o'), ('atus', 'or'),
   ('atus', 'o'), ('sus', 'do'), ('ctus', 'co'), ('issimus', 'is'), ('issimus', 'us'), ('ior', 'us'), ('ior', 'is'), ('ius', 'us')]
-LEMA_FIX = {'adips': 'adeps', 'gazofilacium': 'gazophylacium', 'benedictum': 'benedico', 'benedictus': 'benedico'}
+LEMA_FIX = {'adips': 'adeps', 'gazofilacium': 'gazophylacium', 'benedictum': 'benedico', 'benedictus': 'benedico',
+  'tempto': 'tento', 'temptatio': 'tentatio', 'cotidie': 'cottidie', 'tonitruum': 'tonitrus', 'recte': 'rectus',
+  'vosmet': 'vos', 'nosmet': 'nos', 'transiens': 'transeo', 'introiens': 'introeo', 'daturus': 'do', 'venturus': 'venio',
+  'misericordior': 'misericors', 'abundantior': 'abundans', 'possidendus': 'possideo', 'calciamentum': 'calceamentum'}
 def busca_ls(l):
     l = LEMA_FIX.get(l, l)
     k0 = chave(l)
@@ -225,9 +235,17 @@ LIVROS = {}
 for f in sorted(os.listdir(LIV)):
     if not f.endswith('.json'): continue
     d = json.load(open(os.path.join(LIV, f), encoding='utf-8'))
-    if d.get('testamento') == 'nt' or d.get('livro') not in VULG_NOME: continue
+    if d.get('livro') not in VULG_NOME: continue
     LIVROS[f] = d
-print('livros do AT:', len(LIVROS))
+print('livros:', len(LIVROS))
+
+# AT: linhas = palavras hebraicas (v.he; português em r[8]; latim em r[10], r[11])
+# NT: linhas = palavras gregas (v.gr; português em r[7]; latim em r[9], r[10])
+NT = lambda d: d.get('testamento') == 'nt'
+def linhas(d, v): return v['gr'] if NT(d) else v['he']
+def toks(d, r): return [r[2] or ('?' + r[3])] if NT(d) else toks_he(r)
+def pt_de_linha(d, r): return (r[7] if NT(d) else r[8]) or ''
+def off(d): return 9 if NT(d) else 10
 
 def refs_de(r):
     out = []
@@ -239,8 +257,11 @@ def refs_lxx(v, c, n):
     r = v.get('lxx_ref') or v.get('heb_ref')
     if r and r != '—' and refs_de(r): return refs_de(r)
     return [(c, n)]
+# casos conferidos à mão (nenhum no momento: no NT a numeração segue a do grego, igual à da Vulgata)
+LAT_FIXO = {}
 def candidatos(b, c, n, v):
     """referências latinas possíveis; a primeira é a preferida"""
+    if (b, c, n) in LAT_FIXO: return [tuple(LAT_FIXO[(b, c, n)])]
     out = []
     if b == 'Ps':
         out.append(tuple(refs_lxx(v, c, n)))
@@ -287,7 +308,7 @@ def montar_pares(escolha):
             if refs is None: continue
             lw = palavras(b, refs)
             if not lw: continue
-            hs = [x for r in v['he'] for x in toks_he(r)] + ['NULL']
+            hs = [x for r in linhas(d, v) for x in toks(d, r)] + ['NULL']
             ls = [lema(w)[0] for w in lw]
             pares.append((hs, ls))
     return pares
@@ -316,7 +337,7 @@ for f, d in LIVROS.items():
         c, n = map(int, k.split(':'))
         cs = [x for x in candidatos(b, c, n, v) if palavras(b, x)]
         if not cs: escolha[(f, k)] = None; continue
-        hs = [x for r in v['he'] for x in toks_he(r)] + ['NULL']
+        hs = [x for r in linhas(d, v) for x in toks(d, r)] + ['NULL']
         # vizinhos da preferida também entram (com desconto), para pegar deslocamentos que a tabela não cobre
         viz = []
         for (cc, nn) in cs[0][:1]:
@@ -338,9 +359,9 @@ t_hl = modelo1([(l + ['NULL'], h[:-1]) for h, l in P])
 # ---------------------------------------------------------------- alinhamento por linha
 FUNC = {'et', 'in', 'ad', 'de', 'ex', 'e', 'a', 'ab', 'cum', 'qui', 'quae', 'quod', 'non', 'sum', 'is', 'ut', 'enim',
   'autem', 'vero', 'super', 'sed', 'per', 'pro', 'ne', 'nec', 'neque', 'que', 'quia', 'quoniam', 'ac', 'atque', 'sicut', 'hic', 'ille'}
-def alinhar(he, lw):
+def alinhar(d, he, lw):
     n, m = len(he), len(lw)
-    hs = [toks_he(r) for r in he]
+    hs = [toks(d, r) for r in he]
     ls = [lema(w)[0] for w in lw]
     lin = []
     for j, l in enumerate(ls):
@@ -361,12 +382,12 @@ def alinhar(he, lw):
     return por, princ
 
 # ---------------------------------------------------------------- saída
-oc_at = Counter(); oc_liv = defaultdict(Counter)
+oc_at = Counter(); oc_liv = defaultdict(Counter); oc_tes = {'at': Counter(), 'nt': Counter()}
 for f, d in LIVROS.items():
     for k, v in d['versiculos'].items():
         refs = escolha.get((f, k))
         for w in (palavras(d['livro'], refs) if refs else []):
-            l = lema(w)[0]; oc_at[l] += 1; oc_liv[f][l] += 1
+            l = lema(w)[0]; oc_at[l] += 1; oc_liv[f][l] += 1; oc_tes['nt' if NT(d) else 'at'][l] += 1
 
 STOP_PT = {'o', 'a', 'os', 'as', 'de', 'do', 'da', 'dos', 'das', 'e', 'que', 'em', 'no', 'na', 'nos', 'nas', 'um', 'uma',
   'para', 'por', 'com', 'se', 'ao', 'aos', 'à', 'às', 'pelo', 'pela', 'pelos', 'pelas', 'lhe', 'lhes', 'seu', 'sua', 'seus',
@@ -388,17 +409,19 @@ for f, d in LIVROS.items():
         refs = escolha.get((f, k))
         lw = palavras(b, refs) if refs else []
         c, n = map(int, k.split(':'))
-        v['la'] = [[w, lema(w)[0], lema(w)[1], oc_liv[f][lema(w)[0]], oc_at[lema(w)[0]]] for w in lw]
+        tes = oc_tes['nt' if NT(d) else 'at']
+        v['la'] = [[w, lema(w)[0], lema(w)[1], oc_liv[f][lema(w)[0]], tes[lema(w)[0]]] for w in lw]
         lr = '; '.join(f'{a}:{bb}' for a, bb in refs) if refs else None
         if lr and lr != f'{c}:{n}': v['la_ref'] = lr
         else: v.pop('la_ref', None)
-        por, princ = alinhar(v['he'], lw) if lw and v['he'] else ([[] for _ in v['he']], [-1] * len(v['he']))
-        for i, r in enumerate(v['he']):
-            del r[10:]
+        L = linhas(d, v)
+        por, princ = alinhar(d, L, lw) if lw and L else ([[] for _ in L], [-1] * len(L))
+        for i, r in enumerate(L):
+            del r[off(d):]
             r += [por[i], princ[i]]
             if princ[i] >= 0:
                 l = v['la'][princ[i]][1]
-                for p in (r[8] or '').split():
+                for p in pt_de_linha(d, r).split():
                     lp = lema_pt(p)
                     if lp and lp not in STOP_PT: pt_de[l][lp] += 1
         usados.update(x[1] for x in v['la'])
@@ -422,7 +445,7 @@ for f, (d, usados) in saida.items():
             lex[l] = [e['orth'] if e else l, e['itype'] if e else '', ' '.join(x for x in (e['pos'], e['gen']) if x) if e else '',
                       e['en'] if e else '', PT.get(chave(l), []), trad_bl(l)]
     d['lex_la'] = lex
-    d['colunas_he'] = d['colunas_he'][:10] + ['latim_indices', 'latim_principal']
+    if not NT(d): d['colunas_he'] = d['colunas_he'][:10] + ['latim_indices', 'latim_principal']
     d['lex_la_campos'] = ['lema (Lewis & Short)', 'formas', 'classe', 'definição em inglês', 'significados em português', 'traduções na Bíblia Livre']
     json.dump(d, open(os.path.join(LIV, f), 'w', encoding='utf-8'), ensure_ascii=False, separators=(',', ':'))
     print('ok', f, os.path.getsize(os.path.join(LIV, f)) // 1024, 'KB', sum(1 for v in d['versiculos'].values() if not v['la']), 'sem latim')

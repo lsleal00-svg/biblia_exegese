@@ -37,7 +37,7 @@ body {
   background-color: var(--pergaminho);
   background-image:
     radial-gradient(1200px 500px at 10% -10%, rgba(255,255,255,.55), transparent 60%),
-    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 .35 0 0 0 0 .25 0 0 0 0 .12 0 0 0 .05 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+    url("../img/papel.png");   /* textura pronta: o filtro SVG ao vivo falhava no Chrome do Android */
   color: var(--tinta);
   font: 15px/1.5 'Source Sans 3', system-ui, sans-serif;
   -webkit-font-smoothing: antialiased;
@@ -163,8 +163,11 @@ textarea { resize: vertical; line-height: 1.45; }
 .livro {
   --c: #8e2a24;
   position: relative; border: 0; background: none; padding: 0; text-align: center; color: var(--tinta);
-  display: grid; justify-items: center; gap: 2px; transition: transform .25s var(--ease-out);
+  display: grid; justify-items: center; gap: 2px;
 }
+@media (hover: hover) and (pointer: fine) { .livro { transition: transform .25s var(--ease-out); } }
+/* celular: toque só escurece levemente, sem transformar a camada */
+@media (hover: none) { .livro:active .livro-capa { background-color: var(--c); box-shadow: inset 0 0 0 40px rgba(0,0,0,.12); } }
 .livro.cor-tora        { --c: #8e2a24; }   /* Torá: carmim */
 .livro.cor-anteriores  { --c: #4f7a2a; }   /* Profetas Anteriores: verde-oliva */
 .livro.cor-posteriores { --c: #27497e; }   /* Profetas Posteriores: azul */
@@ -178,7 +181,7 @@ textarea { resize: vertical; line-height: 1.45; }
 .livro.cor-gerais       { --c: #3f6b3a; }   /* Cartas gerais: verde-musgo */
 .livro.cor-apocalipse   { --c: #4a2a6a; }   /* Apocalipse: violeta */
 .livro.cor-neviim { --c: #2f6b4f; } .livro.cor-ketuvim { --c: #5f3a80; }
-.livro:active { transform: scale(.97); }
+@media (hover: hover) and (pointer: fine) { .livro:active { transform: scale(.97); } }
 .livro-obj { position: relative; width: 84px; height: 108px; margin-bottom: 6px; }
 .livro-folhas {
   position: absolute; left: 10px; top: 5px; right: -5px; bottom: -5px; border-radius: 2px 5px 5px 2px;
@@ -215,8 +218,11 @@ textarea { resize: vertical; line-height: 1.45; }
   linear-gradient(#ecc969, #ecc969) left center / 11px 1px no-repeat,
   linear-gradient(#ecc969, #ecc969) right center / 11px 1px no-repeat,
   radial-gradient(circle, #ecc969 0 2.2px, transparent 2.6px) center / 6px 6px no-repeat; }
-.livro-fita { position: absolute; bottom: -12px; right: 22px; width: 7px; height: 16px; background: #c9302a;
-  clip-path: polygon(0 0, 100% 0, 100% 100%, 50% 78%, 0 100%); box-shadow: inset 0 0 0 1px rgba(0,0,0,.15); }
+.livro-fita { position: absolute; bottom: -12px; right: 22px; width: 7px; height: 16px;   /* sem clip-path (pesa no celular) */
+  background:
+    linear-gradient(to top right, transparent 50%, #c9302a 50%) left bottom / 50% 4px no-repeat,
+    linear-gradient(to top left, transparent 50%, #c9302a 50%) right bottom / 50% 4px no-repeat,
+    linear-gradient(#c9302a, #c9302a) top / 100% calc(100% - 4px) no-repeat; }
 .livro-nome { font-size: 13px; font-weight: 600; margin-top: 6px; line-height: 1.2; }
 .livro-heb { font-size: 13px; color: var(--tinta-3); }
 .livro.inativo { --c-cap: color-mix(in srgb, var(--c) 68%, #b8ad9a); }
@@ -795,3 +801,12 @@ body.pode-instalar .icone[data-acao="instalar"] { display: inline-grid !importan
 .ctx-la { font-size: 18px; font-style: italic; }
 .verso-lat-lista .marcada, .verso-lxx .marcada { background: var(--amarelo2); border-radius: 4px; padding: 0 2px; }
 .lat-orth { font-style: italic; }
+
+/* olho nas colunas de Referências, Comentários e Dicionários (cabeçalhos claros) */
+.c-lilas .olho, .c-pessego .olho, .c-rosa .olho { background: rgba(36,24,13,.08); }
+.c-lilas .olho.reabrir, .c-pessego .olho.reabrir, .c-rosa .olho.reabrir { background: transparent; }
+.th-btn-olho { padding-right: 24px; padding-left: 10px; }
+.tabela tbody td.cel-recolhida.c-lilas { box-shadow: inset 3px 0 0 var(--lilas-esc); }
+.tabela tbody td.cel-recolhida.c-pessego { box-shadow: inset 3px 0 0 #c98a5a; }
+.tabela tbody td.cel-recolhida.c-rosa { box-shadow: inset 3px 0 0 #b07aa6; }
+.sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }

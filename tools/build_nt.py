@@ -96,6 +96,13 @@ for l in open(os.path.join(AQUI, 'blivre_faltantes.tsv'), encoding='utf-8'):
     if l.startswith('#') or not l.strip(): continue
     bk, c, n, txt = l.rstrip('\n').split('\t', 3)
     if bk in CODES: PT[bk][(int(c), int(n))] = txt
+# Onde a numeração da NA28 difere da Bíblia Livre (KJV), o português acompanha o grego:
+# 2Co 13: a NA28 junta os vv. 12-13 da BL no v. 12, e a bênção (BL 13:14) é o v. 13.
+# Fp 1:16-17: o corpus da BL vinha com os dois versículos trocados em relação ao grego.
+if (13, 14) in PT['2CO']:
+    PT['2CO'][(13, 12)] = PT['2CO'][(13, 12)] + ' ' + PT['2CO'][(13, 13)]
+    PT['2CO'][(13, 13)] = PT['2CO'].pop((13, 14))
+PT['PHP'][(1, 16)], PT['PHP'][(1, 17)] = PT['PHP'][(1, 17)], PT['PHP'][(1, 16)]
 cache = os.path.join(SRC, 'pt_tokens2.pkl')
 PTTOK = pickle.load(open(cache, 'rb')) if os.path.exists(cache) else {}
 faltam = [(bk, c, n) for bk in PT for (c, n) in PT[bk] if (bk, c, n) not in PTTOK]
